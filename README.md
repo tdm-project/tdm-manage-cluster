@@ -132,8 +132,8 @@ limitations under the License.
 
 ## Authors and contributors
 
-* Marco Enrico Piras (marcoenrico.piras <at> crs4)
-* Mauro del Rio (mauro.delrio <at> crs4)
-* Luca Pireddu (luca.pireddu <at> crs4)
-* Massimo Gaggero (massimo.gaggero <at> crs4)
+* Marco Enrico Piras (`marcoenrico.piras <at> crs4.it`)
+* Mauro del Rio (`mauro.delrio <at> crs4.it`)
+* Luca Pireddu (`luca.pireddu <at> crs4.it`)
+* Massimo Gaggero (`massimo.gaggero <at> crs4.it`)
 
