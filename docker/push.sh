@@ -49,7 +49,7 @@ image_tag=$(../k8s-tools/manage-cluster -v)
 
 # tag and push images
 for target in manage-cluster-tf manage-cluster-ks; do
-  docker_image_name="tdm-project/${target}:${image_tag}"
+  docker_image_name="tdmproject/${target}:${image_tag}"
   tagged_docker_image="${DockerHubOwner}/${target}:${image_tag}"
   docker tag "${docker_image_name}" "${tagged_docker_image}"
   echo -e "\nPushing ${tagged_docker_image}..." >&2
