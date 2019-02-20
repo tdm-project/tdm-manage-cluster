@@ -40,6 +40,10 @@ function abspath() {
   fi
 }
 
+function log() {
+  echo -e "${@}" >&2
+}
+
 function debug_log() {
   if [[ -n "${DEBUG:-}" ]]; then
     echo -e "DEBUG: ${@}" >&2
@@ -72,9 +76,9 @@ function usage_error() {
 function print_ostack_vars() {
   for varname in "${!OS_@}"; do
     if [[ "${varname}" == "OS_PASSWORD" ]]; then
-      echo -e "   - ${varname}="'**************'
+      log "   - ${varname}="'**************'
     else
-      echo -e "   - ${varname}=${!varname:-}"
+      log "   - ${varname}=${!varname:-}"
     fi
   done
 }
@@ -199,7 +203,7 @@ END
 
 function init() {
   if [ -z ${OS_USERNAME:-} ]; then
-    echo "OS environment variable missing. You should source your OpenStack RC file first.
+    error_log "OS environment variable missing. You should source your OpenStack RC file first.
     Aborting." >&2
     exit 2
   fi
@@ -218,7 +222,7 @@ function deploy_cluster() {
   docker_run_tf terraform init ../../contrib/terraform/openstack
   docker_run_tf terraform apply --var-file=cluster.tf ../../contrib/terraform/openstack
   docker_run_tf /usr/local/bin/create_inventory.py --output "${InventoryFile}"
-  echo "Now you can run ./manage-cluster deploy-k8s ${CLUSTER_DIR}"
+  log "Now you can run ./manage-cluster deploy-k8s ${CLUSTER_DIR}"
 }
 
 function get_cluster_name() {
@@ -250,7 +254,7 @@ function copy_certs() {
   local cluster_name="$(get_cluster_name)"
   local ssh_user="$(get_ssh_user)"
   local master_ip="$(get_master_ip)"
-  echo "master IP: ${master_ip}" >&2
+  log "master IP: ${master_ip}"
 
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${key_file_path}" \
       ${ssh_user}@${master_ip} \
@@ -265,15 +269,16 @@ function copy_certs() {
 
 function deploy_k8s() {
   local keyfile_path="$(get_key_file_path)"
-
-  # Cat the key file into ssh-agent to work around group-readable permission
   local cmd=('eval $(ssh-agent -s) ; ' \
              "ssh-add -k '${keyfile_path}' " \
              " && ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 ../../cluster.yml")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
   # generate KubeConfig
-  config_cluster
+  log "Deployment finished.  Configuring client"
+  config_client
+
+  log "\nTo finish configuring your cluster run\n\tmanage-cluster config-cluster ${CLUSTER_DIR}"
 }
 
 function config_cluster () {
@@ -323,13 +328,13 @@ kubectl config use-context ${clusterName}-system
 
 END
 
-  echo "
+  log "
   Now you can type:
   export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
   kubectl config use-context ${clusterName}-system
 
   OR, you can source ${sourcing_file}
-  " >&2
+  "
 }
 
 function destroy_cluster(){
