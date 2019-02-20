@@ -1,0 +1,20 @@
+language: python
+
+python: "3.6"
+
+sudo: required
+
+services: docker
+
+# handled in the Docker image
+install: true
+
+
+script:
+ - docker/build.sh
+
+deploy:
+  - provider: script
+    script: ./docker/push.sh
+    on:
+      branch: master
