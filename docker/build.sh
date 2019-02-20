@@ -36,6 +36,6 @@ else
 fi
 
 for target in manage-cluster-tf manage-cluster-ks; do
-  docker build --target=${target} -t crs4/${target}${Tag} .
+  docker build --target=${target} -t tdm-project/${target}${Tag} .
 done
 
