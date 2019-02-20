@@ -209,7 +209,10 @@ function init() {
     exit 2
   fi
 
-  (printf "\nCurrent cluster '$(get_cluster_name)' (config dir @ '${CLUSTER_DIR}')\n\n" \
+  # avoid using command substitution directly into the string because it won't result
+  # in an error if the command fails
+  local cluster_name=$(get_cluster_name)
+  (printf "\nCurrent cluster '${cluster_name}' (config dir @ '${CLUSTER_DIR}')\n\n" \
     && echo -e "=> Using OpenStack credentials:" && print_ostack_vars \
     && echo -en "\nDo you want to continue (y/n)? ") >&2
   read answer
