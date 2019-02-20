@@ -21,7 +21,7 @@ ThisDir=$( cd "$( dirname "${0}" )" >/dev/null && pwd )
 
 function usage_error() {
   echo "set DOCKER_USERNAME and DOCKER_PASSWORD to login on DockerHub" >&2
-  echo -e "\nUsage: $0" >&2
+  echo -e "\nUsage: $0 [DOCKER_HUB_REPO_OWNER] (default 'tdmproject')" >&2
   exit 2
 }
 
