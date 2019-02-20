@@ -25,13 +25,17 @@ function usage_error() {
   exit 2
 }
 
-# print help
-if [[ $# == 1 ]] && [[ ${1} == "--help" ]]; then
+# check if credentials are defined
+if [[ -z ${DOCKER_USERNAME} || -z ${DOCKER_PASSWORD} ]]; then
   usage_error
 fi
 
-if [[ -z ${DOCKER_USERNAME} || -z ${DOCKER_PASSWORD} ]]; then
+if [[ $# == 0 ]]; then
+  DockerHubOwner="tdmproject"
+elif [[ $# == 1 ]] && [[ ${1} == "--help" ]]; then
   usage_error
+else
+  DockerHubOwner="${1}"
 fi
 
 cd "${ThisDir}"
@@ -46,7 +50,7 @@ image_tag=$(../k8s-tools/manage-cluster -v)
 # tag and push images
 for target in manage-cluster-tf manage-cluster-ks; do
   docker_image_name="tdm-project/${target}:${image_tag}"
-  tagged_docker_image="${DOCKER_USERNAME}/${target}:${image_tag}"
+  tagged_docker_image="${DockerHubOwner}/${target}:${image_tag}"
   docker tag "${docker_image_name}" "${tagged_docker_image}"
   echo -e "\nPushing ${tagged_docker_image}..." >&2
   docker push ${tagged_docker_image}
