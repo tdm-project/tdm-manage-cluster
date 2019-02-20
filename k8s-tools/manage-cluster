@@ -24,8 +24,8 @@ set -o errtrace
 # sw version
 VERSION=1.0rc
 # set version of docker images
-KsImage="${KsImage:-crs4/manage-cluster-ks:${VERSION}}"
-TfImage="${TfImage:-crs4/manage-cluster-tf:${VERSION}}"
+KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
+TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 #
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray
@@ -222,21 +222,21 @@ function deploy_cluster() {
 }
 
 function get_cluster_name() {
-  awk '!/^ *#/ && /cluster_name *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf
+  awk '!/^ *#/ && /cluster_name *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf
 }
 
 function get_key_file_name() {
-  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf)
+  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf)
   echo $(basename ${public_key%.pub})
 }
 
 function get_key_file_path() {
-  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf)
+  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf)
   echo ${public_key%.pub}
 }
 
 function get_ssh_user() {
-  awk '!/^ *#/ && /ssh_user *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf
+  awk '!/^ *#/ && /ssh_user *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf
 }
 
 function get_master_ip () {

@@ -1,0 +1,14 @@
+language: python
+
+python: "3.6"
+
+services: docker
+
+script:
+ - docker/build.sh
+
+deploy:
+  - provider: script
+    script: ./docker/push.sh
+    on:
+      branch: master
