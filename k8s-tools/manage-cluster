@@ -222,21 +222,21 @@ function deploy_cluster() {
 }
 
 function get_cluster_name() {
-  awk '!/^ *#/ && /cluster_name *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf
+  awk '!/^ *#/ && /cluster_name *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf
 }
 
 function get_key_file_name() {
-  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf)
+  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf)
   echo $(basename ${public_key%.pub})
 }
 
 function get_key_file_path() {
-  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf)
+  local public_key=$(awk '!/^ *#/ && /public_key_path *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf)
   echo ${public_key%.pub}
 }
 
 function get_ssh_user() {
-  awk '!/^ *#/ && /ssh_user *=/ { gsub(/"/, "", $3); print $3; }' tf/cluster.tf
+  awk '!/^ *#/ && /ssh_user *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf
 }
 
 function get_master_ip () {
