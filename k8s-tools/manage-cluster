@@ -344,19 +344,16 @@ END
 
 function config_cluster() {
   debug_log "config_cluster function"
-  debug_log "ConfigSkipPlaybooks=${ConfigSkipPlaybooks}"
 
-  #### Add k8s cluster configuration
+  #### TODO: Add k8s cluster configuration
 
-  if [[ "${ConfigSkipPlaybooks}" != "true" ]]; then
-    local keyfile_path="$(get_key_file_path)"
-    local cmd=('eval $(ssh-agent -s) ; ' \
-               "mkdir -p /etc/ansible " \
-               "&& ln -s /kubespray/roles /etc/ansible/roles ;" \
-               "ssh-add -k '${keyfile_path}' " \
-               " && ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 config-cluster.yml")
-    docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
-  fi
+  local keyfile_path="$(get_key_file_path)"
+  local cmd=('eval $(ssh-agent -s) ; ' \
+             "mkdir -p /etc/ansible && " \
+             "ln -s /kubespray/roles /etc/ansible/roles ;" \
+             "ssh-add -k '${keyfile_path}' && " \
+             "ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 config-cluster-playbook.yml")
+  docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 }
 
 function destroy_cluster(){
@@ -390,10 +387,7 @@ function help() {
     template       creates a template cluster configuration directory
     deploy         creates virtual machines
     deploy-k8s     deploys kubernetes
-    config-cluster configure the kubernetes cluster that has just been deployed
-                     Takes the following options:
-                       --skip-default    Skip the default configuration
-                       --custom-playbook Run a custom ansible playbook
+    config-cluster run ansible playbook to configure the kubernetes cluster
     destroy        destroys virtual machines
     config-client  configures kubectl
     shell          opens a shell in the manage-cluster container
@@ -443,18 +437,6 @@ case "$COMMAND" in
     ;;
   config-cluster)
     FUNCTION=config_cluster
-    ConfigSkipPlaybooks="false"
-    while [[ $# > 0 && "${1}" == --* ]]; do
-      case "${1}" in
-        --skip-playbooks)
-          ConfigSkipPlaybooks="true"
-          shift
-          ;;
-        *)
-          break
-          ;;
-      esac
-    done
     ;;
   destroy)
     FUNCTION=destroy_cluster

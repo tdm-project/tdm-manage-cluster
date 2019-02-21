@@ -48,8 +48,8 @@ RUN git clone --depth 1 --single-branch --branch "${kubespray_version}" https://
 COPY config-cluster /home/manageks/config-cluster
 COPY create_inventory.py /usr/local/bin/
 RUN chmod a+rx /usr/local/bin/create_inventory.py \
-    && chmod a+rx /home /home/manageks /home/manageks/config-cluster \
-    && chmod a+r  /home/manageks/config-cluster/*
+    && find /home -type d -print0 | xargs -0 chmod a+rx \
+    && find /home -type f -print0 | xargs -0 chmod a+r
 
 #####################################
 FROM manage-cluster-base AS manage-cluster-tf
