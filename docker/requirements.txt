@@ -15,7 +15,7 @@
 
 ansible==2.7.6
 jinja2==2.10
-netaddr
+netaddr==0.7.19
 pbr==5.1
-hvac
-ansible-modules-hashivault
+hvac==0.7.2
+ansible-modules-hashivault==3.16.0
