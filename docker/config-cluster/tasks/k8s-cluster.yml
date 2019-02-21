@@ -5,13 +5,7 @@
   changed_when: false
   environment: {}
 
-- name: update apt sources
-  raw: apt-get update
+- name: Install Ubuntu or Debian node requirements
+  raw: apt-get update && apt-get -y install nfs-client vim
   ignore_errors: yes
-  when: '"Ubuntu" in os_release.stdout'
-
-- name: install node requirements
-  raw: apt-get -y install nfs-client vim
-  changed_when: False
-  ignore_errors: yes
-  when: '"Ubuntu" in os_release.stdout'
+  when: '"Ubuntu" in os_release.stdout or "Debian" in os_release.stdout'
