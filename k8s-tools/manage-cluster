@@ -87,6 +87,14 @@ function _user_group() {
   echo "$(id -u):$(id -g)"
 }
 
+function ansible_verbosity() {
+  local av="-v"
+  if [[ -n "${DEBUG:-}" ]]; then
+    av="-vvvv"
+  fi
+  echo "${av}"
+}
+
 # this function writes a global variable called 'docker_cmdline'
 function docker_base_cmd() {
   debug_log "Building docker command"
@@ -272,11 +280,12 @@ function copy_certs() {
       sudo cat "/etc/ssl/etcd/ssl/ca.pem" > "${target_folder}/ca.pem"
 }
 
+
 function deploy_k8s() {
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
              "ssh-add -k '${keyfile_path}' " \
-             " && ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 ../../cluster.yml")
+             " && ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 ../../cluster.yml")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
   # generate KubeConfig
@@ -352,7 +361,7 @@ function config_cluster() {
              "mkdir -p /etc/ansible && " \
              "ln -s /kubespray/roles /etc/ansible/roles ;" \
              "ssh-add -k '${keyfile_path}' && " \
-             "ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 config-cluster-playbook.yml")
+             "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 config-cluster-playbook.yml")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 }
 
