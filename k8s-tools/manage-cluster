@@ -148,8 +148,9 @@ function gen_template() {
   # copy sample inventory to CWD (the tf directory in our cluster configuration)
   debug_log "Copying group vars and playbooks from docker container image"
   docker_run_tf /bin/sh -o xtrace -c \
-    "cp --dereference --recursive ${KubesprayContainerDir}/contrib/terraform/openstack/sample-inventory/group_vars .  \
-     && cp --recursive /home/manageks/playbooks . "
+    "cp --dereference --recursive ${KubesprayContainerDir}/contrib/terraform/openstack/sample-inventory/group_vars . \
+     && cp --dereference --recursive /home/manageks/config-cluster/* . \
+     && mkdir roles "
 
   debug_log "Generating cluster.tf template"
   cat > "${CLUSTER_DIR}/tf/cluster.tf" <<END
@@ -350,8 +351,10 @@ function config_cluster() {
   if [[ "${ConfigSkipPlaybooks}" != "true" ]]; then
     local keyfile_path="$(get_key_file_path)"
     local cmd=('eval $(ssh-agent -s) ; ' \
+               "mkdir -p /etc/ansible " \
+               "&& ln -s /kubespray/roles /etc/ansible/roles ;" \
                "ssh-add -k '${keyfile_path}' " \
-               " && for book in playbooks/*.yml; do echo Running playbook \${book}; ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 \${book}; done")
+               " && ansible-playbook -vvvv --become -i '${InventoryFile}' --timeout 30 config-cluster.yml")
     docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
   fi
 }

@@ -1,0 +1,47 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: "Check ansible version !=2.7.0"
+      assert:
+        msg: "Ansible V2.7.0 can't be used until: https://github.com/ansible/ansible/issues/46600 is fixed"
+        that:
+          - ansible_version.string is version("2.7.0", "!=")
+          - ansible_version.string is version("2.6.0", ">=")
+      tags:
+        - check
+  vars:
+    ansible_connection: local
+
+- hosts: bastion[0]
+  gather_facts: False
+  roles:
+    - { role: kubespray-defaults}
+    - { role: bastion-ssh-config, tags: ["localhost", "bastion"]}
+
+- hosts: k8s-cluster
+  name: Global k8s-cluster configuration tasks
+  become: yes
+  gather_facts: true
+  roles:
+    - { role: kubespray-defaults}
+  tasks:
+    - include: tasks/k8s-cluster.yml
+
+- hosts: kube-master
+  name: Global k8s-master configuration tasks
+  become: yes
+  gather_facts: true
+  roles:
+    - { role: kubespray-defaults}
+  tasks:
+    - include: tasks/k8s-master.yml
+
+- hosts: kube-node
+  name: Global k8s-node configuration tasks
+  become: yes
+  gather_facts: true
+  roles:
+    - { role: kubespray-defaults}
+  tasks:
+    - include: tasks/k8s-node.yml
