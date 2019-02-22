@@ -45,11 +45,16 @@ RUN git clone --depth 1 --single-branch --branch "${kubespray_version}" https://
  && find . -type d -print0 | xargs -0 chmod a+rwx \
  && find . -type f -print0 | xargs -0 chmod a+rw
 
+COPY config-cluster /home/manageks/config-cluster
 COPY create_inventory.py /usr/local/bin/
-RUN chmod a+rx /usr/local/bin/create_inventory.py
+RUN chmod a+rx /usr/local/bin/create_inventory.py \
+    && find /home -type d -print0 | xargs -0 chmod a+rx \
+    && find /home -type f -print0 | xargs -0 chmod a+r
 
 #####################################
 FROM manage-cluster-base AS manage-cluster-tf
+
+# USER -> this image is run as the local system user by the manage-cluster script
 
 WORKDIR ${KUBESPRAY_DIR}/inventory/cluster
 ENTRYPOINT []

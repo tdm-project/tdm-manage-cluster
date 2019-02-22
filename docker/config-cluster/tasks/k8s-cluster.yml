@@ -1,0 +1,11 @@
+---
+- name: Fetch os-release
+  raw: cat /etc/os-release
+  register: os_release
+  changed_when: false
+  environment: {}
+
+- name: Install Ubuntu or Debian node requirements
+  raw: apt-get update && apt-get -y install nfs-client vim
+  ignore_errors: yes
+  when: '"Ubuntu" in os_release.stdout or "Debian" in os_release.stdout'
