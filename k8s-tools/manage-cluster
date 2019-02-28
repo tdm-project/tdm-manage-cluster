@@ -160,6 +160,11 @@ function gen_template() {
      && cp --dereference --recursive /home/manageks/config-cluster/* . \
      && mkdir roles "
 
+  debug_log "Customizing template"
+  debug_log "Setting cloud provider to openstack and turning on metrics"
+  sed -i -e 's/^#\{0,1\}[[:space:]]*cloud_provider:.*$/cloud_provider: openstack/' "${CLUSTER_DIR}/tf/group_vars/all/all.yml"
+  sed -i -e 's/^[[:space:]]*metrics_server_enabled:[[:space:]]*false[[:space:]]*$/metrics_server_enabled: true/' "${CLUSTER_DIR}/tf/group_vars/k8s-cluster/addons.yml"
+
   debug_log "Generating cluster.tf template"
   cat > "${CLUSTER_DIR}/tf/cluster.tf" <<END
 # your Kubernetes cluster name here
