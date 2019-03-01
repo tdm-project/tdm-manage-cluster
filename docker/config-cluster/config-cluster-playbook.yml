@@ -26,7 +26,7 @@
   roles:
     - { role: kubespray-defaults}
   tasks:
-    - include: tasks/k8s-cluster.yml
+    - include_tasks: tasks/k8s-cluster.yml
 
 - hosts: kube-master
   name: Global k8s-master configuration tasks
@@ -35,7 +35,7 @@
   roles:
     - { role: kubespray-defaults}
   tasks:
-    - include: tasks/k8s-master.yml
+    - include_tasks: tasks/k8s-master.yml
 
 - hosts: kube-node
   name: Global k8s-node configuration tasks
@@ -44,4 +44,4 @@
   roles:
     - { role: kubespray-defaults}
   tasks:
-    - include: tasks/k8s-node.yml
+    - include_tasks: tasks/k8s-node.yml
