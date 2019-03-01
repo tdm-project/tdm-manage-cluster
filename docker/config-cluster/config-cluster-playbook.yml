@@ -41,6 +41,8 @@
   name: Global k8s-node configuration tasks
   become: yes
   gather_facts: true
+  vars:
+    - n_local_volumes: 10
   roles:
     - { role: kubespray-defaults}
   tasks:

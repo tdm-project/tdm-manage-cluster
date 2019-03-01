@@ -43,25 +43,15 @@
   file:
     state: directory
     path: "/mnt/eph0/{{ item.0 }}/{{ item.1 }}"
-  loop: "{{ [ 'retain', 'scratch' ]|product(range(0,10))|list }}"
+  loop: "{{ [ 'retain', 'scratch' ]|product(range(0, n_local_volumes))|list }}"
   when: ephemeral_present is succeeded
 
-- name: Bind mount ephemeral 'retain' subdirectories
+- name: Bind mount ephemeral 'retain' and 'scratch' subdirectories
   mount:
     state: mounted
     opts: bind
-    src: "/mnt/eph0/retain/{{ item }}"
-    path: "/mnt/eph_retain/{{ item }}"
+    src: "/mnt/eph0/{{ item.0 }}/{{ item.1 }}"
+    path: "/mnt/eph_{{ item.0 }}/{{ item.1 }}"
     fstype: auto
-  loop: "{{ range(0,10)|list }}"
-  when: ephemeral_present is succeeded
-
-- name: Bind mount ephemeral 'scratch' subdirectories
-  mount:
-    state: mounted
-    opts: bind
-    src: "/mnt/eph0/scratch/{{ item }}"
-    path: "/mnt/eph_scratch/{{ item }}"
-    fstype: auto
-  loop: "{{ range(0,10)|list }}"
+  loop: "{{ [ 'retain', 'scratch' ]|product(range(0, n_local_volumes))|list }}"
   when: ephemeral_present is succeeded
