@@ -1,4 +1,7 @@
 ---
+
+#ansible-playbook -v --become -i hosts.ini --timeout 30 config-cluster-playbook.yml
+
 - hosts: localhost
   gather_facts: false
   tasks:
@@ -20,7 +23,7 @@
     - { role: bastion-ssh-config, tags: ["localhost", "bastion"]}
 
 - hosts: k8s-cluster
-  name: Global k8s-cluster configuration tasks
+  name: Global k8s-cluster node configuration tasks
   become: yes
   gather_facts: true
   roles:
@@ -29,7 +32,7 @@
     - include_tasks: tasks/k8s-cluster.yml
 
 - hosts: kube-master
-  name: Global k8s-master configuration tasks
+  name: Global k8s-master node configuration tasks
   become: yes
   gather_facts: true
   roles:
@@ -38,12 +41,32 @@
     - include_tasks: tasks/k8s-master.yml
 
 - hosts: kube-node
-  name: Global k8s-node configuration tasks
+  name: Global k8s-node node configuration tasks
   become: yes
   gather_facts: true
+  strategy: free
   vars:
     - n_local_volumes: 10
   roles:
     - { role: kubespray-defaults}
   tasks:
     - include_tasks: tasks/k8s-node.yml
+
+- hosts: kube-master[0]
+  tags:
+    - k8sconf
+  name: k8s deployment configuration tasks
+  become: yes
+  gather_facts: false
+  vars:
+    helm:
+      version: v2.13.0
+      checksum: "sha256:15eca6ad225a8279de80c7ced42305e24bc5ac60bb7d96f2d2fa4af86e02c794"
+    local_provisioner:
+      version: v2.3.0
+      checksum: "sha256:d299b30e3c0728ab699acc10f42e4f16d9e5cb8c7395cfc006f9e4ee01c0c563"
+  roles:
+    - { role: kubespray-defaults}
+  tasks:
+    - include_tasks: tasks/k8s-deployment-config.yml
+

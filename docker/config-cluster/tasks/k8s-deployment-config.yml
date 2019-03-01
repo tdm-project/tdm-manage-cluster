@@ -1,0 +1,137 @@
+---
+
+### install helm executable
+- name: "Check helm executable"
+  shell: helm version --client --short | grep "{{ helm.version }}"
+  register: helm_client_ok
+  ignore_errors: True
+  changed_when: False
+
+- name: print message
+  debug:
+    msg: "{{ [ '', 'found helm executable on master', '' ] }}"
+  when: helm_client_ok is succeeded
+
+
+- name: print message
+  debug:
+    msg: "{{ [ '', 'installing helm executable on master node', '' ] }}"
+  when: helm_client_ok is failed
+
+- name: Create temporary directory for helm download
+  tempfile:
+    state: directory
+  register: output
+  when: helm_client_ok is failed
+
+- name: "Download helm {{ helm.version }}"
+  get_url:
+    checksum: "{{ helm.checksum }}"
+    dest: "{{ output.path }}/helm_archive.tar.gz"
+    url: "https://storage.googleapis.com/kubernetes-helm/helm-{{ helm.version }}-linux-amd64.tar.gz"
+  when: helm_client_ok is failed
+
+- name: Extract helm
+  unarchive:
+    src: "{{ output.path }}/helm_archive.tar.gz"
+    copy: no
+    creates: "{{ output.path }}/linux-amd64/helm"
+    dest: "{{ output.path }}"
+  when: helm_client_ok is failed
+
+- name: stat helm executable
+  stat:
+    path: "{{ output.path }}/linux-amd64/helm"
+  register: helm_stat
+  when: helm_client_ok is failed
+
+- name: Install helm executable
+  command: mv "{{ helm_stat.stat.path }}" /usr/local/bin
+  when: helm_client_ok is failed and helm_stat.stat.exists
+
+- name: Set helm owner and permissions
+  file:
+    path: /usr/local/bin/helm
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Remove helm installation directory
+  file:
+    path: "{{ output.path }}"
+    state: absent
+  when: helm_client_ok is failed
+
+###### Install k8s resources
+- name: print message
+  debug:
+    msg: "{{ [ '', 'Installing k8s resources', '' ] }}"
+
+- name: Copy k8s resources to master node
+  copy:
+    src: "{{ playbook_dir }}/k8s-resources"
+    dest: /root/manage-cluster/
+
+- name: list k8s resources on master node
+  find:
+    paths: /root/manage-cluster/k8s-resources
+  register: k8s_resources
+
+- name: Create k8s resources
+  shell: kubectl apply -f "{{ item.path }}"
+  loop: "{{ k8s_resources.files | list }}"
+
+####### Install tiller on cluster
+- name: print message
+  debug:
+    msg: "{{ [ '', 'Installng/upgrading tiller', '' ] }}"
+
+- name: Install or upgrade tiller
+  shell: helm init --service-account tiller --upgrade
+  register: tiller_install_result
+
+- name: Print tiller output
+  debug:
+    msg: "{{ tiller_install_result.stdout.split('\n') }}" # The splitting makes it reproduce the newlines
+
+### Generate template for local storage provisioner
+#- name: Check if provisioner installed
+#  shell: kubectl get pods --all-namespaces=true | grep 
+#  register: helm_client_ok
+#  ignore_errors: True
+#  changed_when: False
+#
+##
+#- name: Create temporary directory for sig-storage-local-static-provisioner download
+#  tempfile:
+#    state: directory
+#  register: output
+#
+#- name: "Name download sig-storage-local-static-provisioner {{ local_provisioner.version }}"
+#  get_url:
+#    checksum: "{{ local_provisioner.checksum }}"
+#    dest: "{{ output.path }}/provisioner_archive.tar.gz"
+#    url: "https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner/archive/{{ local_provisioner.version }}.tar.gz"
+#
+#- name: set var
+#  set_fact:
+#    provisioner_path: "{{ output.path }}/sig-storage-local-static-provisioner-{{ local_provisioner.version[1:] }}" 
+#
+#- name: Extract provisioner archive
+#  unarchive:
+#    src: "{{ output.path }}/provisioner_archive.tar.gz"
+#    copy: no
+#    creates: "{{ provisioner_path }}"
+#    dest: "{{ output.path }}"
+#
+#- name: Create provisioner template
+#  shell: >
+#    helm template --values "{{ playbook_dir }}/helm-resources/sig-storage-local-static-provisioner_values.yml"
+#    "{{ provisioner_path }}/helm/provisioner" > k8s-resources/local-static-provisioner.yml.generated
+#
+#- name: Remove tmp provisioner installation directory
+#  file:
+#    path: "{{ output.path }}"
+#    state: absent
+#
+#

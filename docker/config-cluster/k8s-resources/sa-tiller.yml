@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tiller
+  namespace: kube-system
+  labels:
+    heritage: "manage-cluster"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tiller-cluster-rule 
+  labels:
+    heritage: "manage-cluster"
+subjects:
+- kind: ServiceAccount
+  name: tiller
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: system:cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+
