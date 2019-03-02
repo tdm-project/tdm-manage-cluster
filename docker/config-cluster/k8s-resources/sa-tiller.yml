@@ -1,3 +1,4 @@
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -20,6 +21,6 @@ subjects:
   namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: system:cluster-admin
+  name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
 
