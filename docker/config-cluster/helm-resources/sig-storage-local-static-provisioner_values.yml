@@ -1,0 +1,18 @@
+
+# helm template --values sig-storage-local-static-provisioner_values.yml  ~/Projects/sig-storage-local-static-provisioner/helm/provisioner > provisioner_generated.yaml
+
+common:
+  # must be kube-system.  Otherwise you need to lower the pod priority
+  namespace: kube-system
+
+classes:
+  # Want more than one class?  They must point to different paths
+  - name: eph-delete
+    hostDir: /mnt/eph_scratch
+  - name: eph-retain
+    hostDir: /mnt/eph_retain
+    blockCleanerCommand:
+      - ""
+
+#daemonset:
+#  nodeSelector: {}

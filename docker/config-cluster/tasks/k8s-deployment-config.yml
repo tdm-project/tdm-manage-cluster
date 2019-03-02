@@ -9,7 +9,7 @@
 
 - name: print message
   debug:
-    msg: "{{ [ '', 'found helm executable on master', '' ] }}"
+    msg: "{{ [ '', 'found helm executable version {{ helm.version }} on master', '' ] }}"
   when: helm_client_ok is succeeded
 
 
@@ -94,44 +94,50 @@
   debug:
     msg: "{{ tiller_install_result.stdout.split('\n') }}" # The splitting makes it reproduce the newlines
 
-### Generate template for local storage provisioner
-#- name: Check if provisioner installed
-#  shell: kubectl get pods --all-namespaces=true | grep 
-#  register: helm_client_ok
-#  ignore_errors: True
-#  changed_when: False
-#
-##
-#- name: Create temporary directory for sig-storage-local-static-provisioner download
-#  tempfile:
-#    state: directory
-#  register: output
-#
-#- name: "Name download sig-storage-local-static-provisioner {{ local_provisioner.version }}"
-#  get_url:
-#    checksum: "{{ local_provisioner.checksum }}"
-#    dest: "{{ output.path }}/provisioner_archive.tar.gz"
-#    url: "https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner/archive/{{ local_provisioner.version }}.tar.gz"
-#
-#- name: set var
-#  set_fact:
-#    provisioner_path: "{{ output.path }}/sig-storage-local-static-provisioner-{{ local_provisioner.version[1:] }}" 
-#
-#- name: Extract provisioner archive
-#  unarchive:
-#    src: "{{ output.path }}/provisioner_archive.tar.gz"
-#    copy: no
-#    creates: "{{ provisioner_path }}"
-#    dest: "{{ output.path }}"
-#
-#- name: Create provisioner template
-#  shell: >
-#    helm template --values "{{ playbook_dir }}/helm-resources/sig-storage-local-static-provisioner_values.yml"
-#    "{{ provisioner_path }}/helm/provisioner" > k8s-resources/local-static-provisioner.yml.generated
-#
-#- name: Remove tmp provisioner installation directory
-#  file:
-#    path: "{{ output.path }}"
-#    state: absent
-#
-#
+- name: Copy helm resources to master node
+  copy:
+    src: "{{ playbook_dir }}/helm-resources"
+    dest: /root/manage-cluster/
+
+### Install  local storage provisioner
+
+- name: Check if provisioner installed
+  shell: kubectl get pods -l app=local-volume-provisioner --all-namespaces --output=name | grep -c local-volume-provisioner
+  register: provisioner_ok
+  ignore_errors: True
+  changed_when: False
+
+- name: Create temporary directory for sig-storage-local-static-provisioner download
+  tempfile:
+    state: directory
+  register: output
+  when: provisioner_ok is failed
+
+- name: "Name download sig-storage-local-static-provisioner {{ local_provisioner.version }}"
+  get_url:
+    checksum: "{{ local_provisioner.checksum }}"
+    dest: "{{ output.path }}/provisioner_archive.tar.gz"
+    url: "https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner/archive/{{ local_provisioner.version }}.tar.gz"
+  when: provisioner_ok is failed
+
+- name: set var
+  set_fact:
+    provisioner_path: "{{ output.path }}/sig-storage-local-static-provisioner-{{ local_provisioner.version[1:] }}"
+
+- name: Extract provisioner archive
+  unarchive:
+    src: "{{ output.path }}/provisioner_archive.tar.gz"
+    copy: no
+    creates: "{{ provisioner_path }}"
+    dest: "{{ output.path }}"
+  when: provisioner_ok is failed
+
+- name: Install local volume provisioner chart into kube-system namespace
+  command: helm install --namespace kube-system --values /root/manage-cluster/helm-resources/sig-storage-local-static-provisioner_values.yml "{{ provisioner_path }}/helm/provisioner"
+  when: provisioner_ok is failed
+
+- name: Remove provisioner download directory
+  file:
+    path: "{{ output.path }}"
+    state: absent
+  when: provisioner_ok is failed
