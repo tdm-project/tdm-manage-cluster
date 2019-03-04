@@ -359,6 +359,10 @@ END
 
   OR, you can source ${sourcing_file}
   "
+
+  if command -v helm >/dev/null; then
+    helm repo add crs4 https://crs4.github.io/helm-charts/
+  fi
 }
 
 function config_cluster() {
