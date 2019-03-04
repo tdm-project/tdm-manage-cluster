@@ -158,12 +158,16 @@ function gen_template() {
   docker_run_tf /bin/sh -o xtrace -c \
     "cp --dereference --recursive ${KubesprayContainerDir}/contrib/terraform/openstack/sample-inventory/group_vars . \
      && cp --dereference --recursive /home/manageks/config-cluster/* . \
-     && mkdir roles "
+     && mkdir --parents roles"
 
   debug_log "Customizing template"
-  debug_log "Setting cloud provider to openstack and turning on metrics"
-  sed -i -e 's/^#\{0,1\}[[:space:]]*cloud_provider:.*$/cloud_provider: openstack/' "${CLUSTER_DIR}/tf/group_vars/all/all.yml"
-  sed -i -e 's/^[[:space:]]*metrics_server_enabled:[[:space:]]*false[[:space:]]*$/metrics_server_enabled: true/' "${CLUSTER_DIR}/tf/group_vars/k8s-cluster/addons.yml"
+  debug_log "Setting cloud provider to openstack, turning on metrics, turning off deployment of helm and LV provisioner"
+  sed -i -e 's/^[#[:blank:]]*cloud_provider:.*$/cloud_provider: openstack/' "${CLUSTER_DIR}/tf/group_vars/all/all.yml"
+  sed -i \
+    -e 's/^[#[:blank:]]*metrics_server_enabled:.*$/metrics_server_enabled: true/' \
+    -e 's/^[#[:blank:]]*helm_enabled:.*$/helm_enabled: false/' \
+    -e 's/^[#[:blank:]]*local_volume_provisioner_enabled:.*$/local_volume_provisioner_enabled: false/' \
+    "${CLUSTER_DIR}/tf/group_vars/k8s-cluster/addons.yml"
 
   debug_log "Generating cluster.tf template"
   cat > "${CLUSTER_DIR}/tf/cluster.tf" <<END
