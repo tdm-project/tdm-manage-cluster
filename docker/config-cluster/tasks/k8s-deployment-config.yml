@@ -4,12 +4,12 @@
 - name: "Check helm executable"
   shell: helm version --client --short | grep "{{ helm.version }}"
   register: helm_client_ok
-  ignore_errors: True
+  ignore_errors: true
   changed_when: False
 
 - name: print message
   debug:
-    msg: "{{ [ '', 'found helm executable version {{ helm.version }} on master', '' ] }}"
+    msg: "{{ [ '', 'found helm executable version ' + helm.version + ' on master', '' ] }}"
   when: helm_client_ok is succeeded
 
 
@@ -101,10 +101,10 @@
 
 ### Install  local storage provisioner
 
-- name: Check if provisioner installed
+- name: Check if local provisioner installed
   shell: kubectl get pods -l app=local-volume-provisioner --all-namespaces --output=name | grep -c local-volume-provisioner
   register: provisioner_ok
-  ignore_errors: True
+  ignore_errors: true
   changed_when: False
 
 - name: Create temporary directory for sig-storage-local-static-provisioner download
@@ -123,6 +123,7 @@
 - name: set var
   set_fact:
     provisioner_path: "{{ output.path }}/sig-storage-local-static-provisioner-{{ local_provisioner.version[1:] }}"
+  when: provisioner_ok is failed
 
 - name: Extract provisioner archive
   unarchive:
@@ -141,3 +142,46 @@
     path: "{{ output.path }}"
     state: absent
   when: provisioner_ok is failed
+
+
+### Install NFS provisioner
+
+- name: Get installed nfs provisioner chart
+  # The awk is to get a non-zero exit code on empty output
+  shell: helm list | cut -f 5 | awk 'BEGIN{ rv = 1 }; /\<nfs-server-provisioner/ { n=split($0, name_ver, "-"); print name_ver[n]; rv = 0; }; END{ exit rv }'
+  register: nfs_provisioner_installed
+  ignore_errors: true
+  changed_when: False
+
+- name: Show detected chart version
+  debug:
+    msg: "Detected nfs-server-provisioner version {{ nfs_provisioner_installed.stdout }}"
+  when: nfs_provisioner_installed is succeeded
+
+
+- name: set version fact
+  set_fact:
+    version_ok: false
+  changed_when: false
+
+- name: set version fact if ok
+  set_fact:
+    version_ok: "{{ nfs_provisioner_installed.stdout is version(nfs_provisioner.version, '>=') }}"
+  when: nfs_provisioner_installed is succeeded
+
+- name: Install NFS provisioner for ReadWriteMany volumes
+  command: helm install --debug --namespace kube-system --values /root/manage-cluster/helm-resources/nfs-server-provisioner_values.yml stable/nfs-server-provisioner --version "{{ nfs_provisioner.version }}"
+  when: nfs_provisioner_installed is failed
+
+- name: Fail if unsupported NFS provisioner upgrade
+  fail:
+    msg: "Found nfs provisioner version {{ nfs_provisioner_installed.stdout }} but this playbook doesn' support upgrading the helm chart."
+  when:
+    - nfs_provisioner_installed is succeeded
+    - not version_ok
+
+- debug:
+    msg: "{{ [ '', 'NFS server provisioner chart version ' + nfs_provisioner_installed.stdout + ' was already installed', '' ] }}"
+  when:
+    - nfs_provisioner_installed is succeeded
+    - version_ok

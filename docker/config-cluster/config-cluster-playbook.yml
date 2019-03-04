@@ -65,6 +65,8 @@
     local_provisioner:
       version: v2.3.0
       checksum: "sha256:d299b30e3c0728ab699acc10f42e4f16d9e5cb8c7395cfc006f9e4ee01c0c563"
+    nfs_provisioner:
+      version: 0.2.1
   roles:
     - { role: kubespray-defaults}
   tasks:
