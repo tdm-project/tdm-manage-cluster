@@ -1,8 +1,8 @@
 
-# helm template --values sig-storage-local-static-provisioner_values.yml  ~/Projects/sig-storage-local-static-provisioner/helm/provisioner > provisioner_generated.yaml
-
 common:
-  # must be kube-system.  Otherwise you need to lower the pod priority
+  # Must be kube-system.  Otherwise you need to lower the pod priority
+  # Note that unless you specify --namespace kube-system the helm release will still be
+  # installed in the default namespace.
   namespace: kube-system
 
 classes:

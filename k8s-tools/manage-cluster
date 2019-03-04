@@ -186,6 +186,7 @@ ssh_user = "ubuntu"
 number_of_bastions = 0
 #flavor_bastion = "<UUID>"
 flavor_bastion = "0298dfce-aa0f-45d0-91a6-ca8ac2313d94"
+#bastion_allowed_remote_ip = ["0.0.0.0/0"]
 
 # standalone etcds
 number_of_etcd = 0
@@ -362,8 +363,6 @@ END
 
 function config_cluster() {
   debug_log "config_cluster function"
-
-  #### TODO: Add k8s cluster configuration
 
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
