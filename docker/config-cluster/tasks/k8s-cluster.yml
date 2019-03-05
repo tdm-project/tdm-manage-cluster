@@ -1,4 +1,7 @@
 ---
 - name: Install Ubuntu or Debian node requirements
-  raw: apt-get update && apt-get -y install nfs-client vim
-  when: ansible_facts['os_family'] == "Debian"
+  apt:
+    update_cache: yes
+    name:
+      - nfs-client
+      - vim
