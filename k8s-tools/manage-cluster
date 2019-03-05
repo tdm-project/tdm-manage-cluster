@@ -236,7 +236,7 @@ function init() {
     && echo -en "\nDo you want to continue (y/n)? ") >&2
   read answer
   echo >&2
-  if [[ $answer != "y" ]]; then
+  if [[ "${answer}" != y* ]]; then
     exit 0
   fi
 }
@@ -365,20 +365,53 @@ END
   fi
 }
 
-function config_cluster() {
-  debug_log "config_cluster function"
+function _run_playbook() {
 
+  local playbook_file="${1}"
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
              "mkdir -p /etc/ansible && " \
              "ln -s /kubespray/roles /etc/ansible/roles ;" \
              "ssh-add -k '${keyfile_path}' && " \
-             "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 config-cluster-playbook.yml")
+             "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 '${playbook_file}'")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 }
 
+function config_cluster() {
+  _run_playbook config-cluster-playbook.yml
+}
+
+function unconfig_cluster() {
+  _run_playbook unconfig-cluster-playbook.yml
+}
+
 function destroy_cluster(){
+
+  cat >&2 <<END
+
+
+We are about to deconfigure your cluster (REMOVING PVCs and deployed charts!!!)
+This will be done BEFORE Terraform asks you to confirm the destruction of
+deployed objects.
+
+===============================================================================
+
+                    ARE YOU SURE YOU WANT TO PROCEED?
+
+===============================================================================
+
+END
+
+  printf "Type \"yes\" to confirm: " >&2
+  read answer
+  echo >&2
+  if [[ $answer != "yes" ]]; then
+    log "Aborting destruction"
+    exit 0
+  fi
+
   local master_ip="$(get_master_ip)"
+  unconfig_cluster
   docker_run_tf terraform init ../../contrib/terraform/openstack;
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
