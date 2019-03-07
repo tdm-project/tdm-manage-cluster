@@ -361,7 +361,9 @@ END
   "
 
   if command -v helm >/dev/null; then
-    helm repo add crs4 https://crs4.github.io/helm-charts/
+    if ! helm repo add crs4 https://crs4.github.io/helm-charts/ 2>/dev/null ; then
+      log "Please initialize helm and add https://crs4.github.io/helm-charts/ to your repositories to install CRS4's charts"
+    fi
   fi
 }
 
@@ -473,6 +475,11 @@ while getopts ":h :v" opt; do
         ;;
   esac
 done
+
+if [[ $# != 2 ]]; then
+  # At this point, we always need at two arguments from the user: subcommand and path
+  usage_error
+fi
 
 # shift arguments forward by the amount processed by getopts
 shift $(($OPTIND - 1))
