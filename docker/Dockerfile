@@ -16,8 +16,11 @@
 FROM hashicorp/terraform:0.11.11 AS manage-cluster-base
 
 # KubeSpray repo and version
-ARG git_repo=kubernetes-sigs/kubespray.git
-ARG kubespray_version="v2.8.2"
+#ARG git_repo=kubernetes-sigs/kubespray.git
+#ARG kubespray_version="v2.8.2"
+
+ARG git_repo=tdm-project/kubespray.git
+ARG kubespray_version="v2.8.2_anti_affinity"
 
 LABEL kubespray_version="${kubespray_version}"
 
