@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.0rc2
+VERSION=1.1rc2
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
@@ -158,12 +158,16 @@ function gen_template() {
   docker_run_tf /bin/sh -o xtrace -c \
     "cp --dereference --recursive ${KubesprayContainerDir}/contrib/terraform/openstack/sample-inventory/group_vars . \
      && cp --dereference --recursive /home/manageks/config-cluster/* . \
-     && mkdir roles "
+     && mkdir --parents roles"
 
   debug_log "Customizing template"
-  debug_log "Setting cloud provider to openstack and turning on metrics"
-  sed -i -e 's/^#\{0,1\}[[:space:]]*cloud_provider:.*$/cloud_provider: openstack/' "${CLUSTER_DIR}/tf/group_vars/all/all.yml"
-  sed -i -e 's/^[[:space:]]*metrics_server_enabled:[[:space:]]*false[[:space:]]*$/metrics_server_enabled: true/' "${CLUSTER_DIR}/tf/group_vars/k8s-cluster/addons.yml"
+  debug_log "Setting cloud provider to openstack, turning on metrics, turning off deployment of helm and LV provisioner"
+  sed -i -e 's/^[#[:blank:]]*cloud_provider:.*$/cloud_provider: openstack/' "${CLUSTER_DIR}/tf/group_vars/all/all.yml"
+  sed -i-e \
+    's/^[#[:blank:]]*metrics_server_enabled:.*$/metrics_server_enabled: true/;
+     s/^[#[:blank:]]*helm_enabled:.*$/helm_enabled: false/;
+     s/^[#[:blank:]]*local_volume_provisioner_enabled:.*$/local_volume_provisioner_enabled: false/' \
+    "${CLUSTER_DIR}/tf/group_vars/k8s-cluster/addons.yml"
 
   debug_log "Generating cluster.tf template"
   cat > "${CLUSTER_DIR}/tf/cluster.tf" <<END
@@ -174,7 +178,7 @@ dns_nameservers = ["172.30.3.211", "172.30.3.212"]
 public_key_path = "../artifacts/${defaultSshKeyFile}.pub"
 
 # image to use for bastion, masters, standalone etcd instances, and nodes
-image = "ubuntu-16.04"
+image = "ubuntu-18.04"
 # user on the node (ex. core on Container Linux, ubuntu on Ubuntu, etc.)
 ssh_user = "ubuntu"
 
@@ -182,6 +186,7 @@ ssh_user = "ubuntu"
 number_of_bastions = 0
 #flavor_bastion = "<UUID>"
 flavor_bastion = "0298dfce-aa0f-45d0-91a6-ca8ac2313d94"
+#bastion_allowed_remote_ip = ["0.0.0.0/0"]
 
 # standalone etcds
 number_of_etcd = 0
@@ -231,7 +236,7 @@ function init() {
     && echo -en "\nDo you want to continue (y/n)? ") >&2
   read answer
   echo >&2
-  if [[ $answer != "y" ]]; then
+  if [[ "${answer}" != y* ]]; then
     exit 0
   fi
 }
@@ -354,24 +359,61 @@ END
 
   OR, you can source ${sourcing_file}
   "
+
+  if command -v helm >/dev/null; then
+    if ! helm repo add crs4 https://crs4.github.io/helm-charts/ 2>/dev/null ; then
+      log "Please initialize helm and add https://crs4.github.io/helm-charts/ to your repositories to install CRS4's charts"
+    fi
+  fi
 }
 
-function config_cluster() {
-  debug_log "config_cluster function"
+function _run_playbook() {
 
-  #### TODO: Add k8s cluster configuration
-
+  local playbook_file="${1}"
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
              "mkdir -p /etc/ansible && " \
              "ln -s /kubespray/roles /etc/ansible/roles ;" \
              "ssh-add -k '${keyfile_path}' && " \
-             "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 config-cluster-playbook.yml")
+             "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 '${playbook_file}'")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 }
 
+function config_cluster() {
+  _run_playbook config-cluster-playbook.yml
+}
+
+function unconfig_cluster() {
+  _run_playbook unconfig-cluster-playbook.yml
+}
+
 function destroy_cluster(){
+
+  cat >&2 <<END
+
+
+We are about to deconfigure your cluster (REMOVING PVCs and deployed charts!!!)
+This will be done BEFORE Terraform asks you to confirm the destruction of
+deployed objects.
+
+===============================================================================
+
+                    ARE YOU SURE YOU WANT TO PROCEED?
+
+===============================================================================
+
+END
+
+  printf "Type \"yes\" to confirm: " >&2
+  read answer
+  echo >&2
+  if [[ $answer != "yes" ]]; then
+    log "Aborting destruction"
+    exit 0
+  fi
+
   local master_ip="$(get_master_ip)"
+  unconfig_cluster
   docker_run_tf terraform init ../../contrib/terraform/openstack;
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
@@ -433,6 +475,11 @@ while getopts ":h :v" opt; do
         ;;
   esac
 done
+
+if [[ $# != 2 ]]; then
+  # At this point, we always need at two arguments from the user: subcommand and path
+  usage_error
+fi
 
 # shift arguments forward by the amount processed by getopts
 shift $(($OPTIND - 1))

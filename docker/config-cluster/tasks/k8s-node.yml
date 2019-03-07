@@ -1,1 +1,57 @@
 ---
+- name: Check whether we have an ephemeral block device
+  shell: blkid /dev/vdb | grep 'LABEL="EPH'
+  register: ephemeral_present
+  ignore_errors: True
+  changed_when: False
+
+- name: Check whether we have a virgin ephemeral volume
+  shell: blkid /dev/vdb | grep 'LABEL="EPHEMERAL' | grep 'TYPE="vfat"'
+  register: ephemeral_vergin
+  ignore_errors: True
+  changed_when: False
+
+- name: Tell user we're not going to format
+  debug:
+    msg: "Ephemeral volume is not 'virgin'. We're not going to format it."
+  when: ephemeral_present is succeeded and ephemeral_vergin is failed
+
+- name: unmount ephemeral volume
+  mount:
+    state: absent
+    path: /mnt
+    src: /dev/vdb
+  when: ephemeral_vergin is succeeded
+
+- name: Create a ext4 filesystem on ephemeral /dev/vdb
+  filesystem:
+    fstype: ext4
+    dev: /dev/vdb
+    opts: -L EPH-FORMATTED
+    force: yes
+  when: ephemeral_vergin is succeeded
+
+- name: Mount ephemeral volume
+  mount:
+    state: mounted
+    src: /dev/vdb
+    path: /mnt/eph0
+    fstype: ext4
+  when: ephemeral_present is succeeded
+
+- name: Create volume directories
+  file:
+    state: directory
+    path: "/mnt/eph0/{{ item.0 }}/{{ item.1 }}"
+  loop: "{{ [ 'retain', 'scratch' ]|product(range(0, n_local_volumes))|list }}"
+  when: ephemeral_present is succeeded
+
+- name: Bind mount ephemeral 'retain' and 'scratch' subdirectories
+  mount:
+    state: mounted
+    opts: bind
+    src: "/mnt/eph0/{{ item.0 }}/{{ item.1 }}"
+    path: "/mnt/eph_{{ item.0 }}/{{ item.1 }}"
+    fstype: auto
+  loop: "{{ [ 'retain', 'scratch' ]|product(range(0, n_local_volumes))|list }}"
+  when: ephemeral_present is succeeded

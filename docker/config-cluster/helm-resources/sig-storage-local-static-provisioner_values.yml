@@ -1,0 +1,18 @@
+
+common:
+  # Must be kube-system.  Otherwise you need to lower the pod priority
+  # Note that unless you specify --namespace kube-system the helm release will still be
+  # installed in the default namespace.
+  namespace: kube-system
+
+classes:
+  # Want more than one class?  They must point to different paths
+  - name: eph-delete
+    hostDir: /mnt/eph_scratch
+  - name: eph-retain
+    hostDir: /mnt/eph_retain
+    blockCleanerCommand:
+      - ""
+
+#daemonset:
+#  nodeSelector: {}

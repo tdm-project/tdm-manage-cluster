@@ -1,0 +1,21 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cinder-delete
+  labels:
+    heritage: "manage-cluster"
+  annotations:
+    "storageclass.kubernetes.io/is-default-class": "true"
+provisioner: kubernetes.io/cinder
+reclaimPolicy: Delete
+
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: cinder-retain
+  labels:
+    heritage: "manage-cluster"
+provisioner: kubernetes.io/cinder
+reclaimPolicy: Retain

@@ -1,0 +1,31 @@
+---
+
+- name: "check tiller installed"
+  shell: helm version --server --short
+  register: helm_installed
+  ignore_errors: true
+  changed_when: False
+
+- name: Remove all helm deployments
+  shell: helm list --short | xargs --max-lines=1 --no-run-if-empty helm delete
+  register: helm_output
+  when: helm_installed is succeeded
+
+- name: feedback
+  debug:
+    msg: "{{ helm_output.stdout_lines }}"
+  when: helm_installed is succeeded
+
+- name: Delete all PVCs
+  #shell: kubectl delete pvc --all -n kube-system
+  shell: kubectl get pvc --all-namespaces --output json | kubectl delete -f -
+  register: kubectl_output
+
+- name: feedback
+  debug:
+    msg: "{{ kubectl_output.stdout_lines }}"
+
+- name: pause to give a chance to helm and k8s to remove objects
+  pause:
+    echo: no
+    seconds: 5

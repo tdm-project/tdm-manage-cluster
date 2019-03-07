@@ -60,12 +60,13 @@ For additional functionality see the output from `manage-cluster -h`:
   manage-cluster -v        prints the 'manage-cluster' version
 
   COMMAND:
-    template     creates a template cluster configuration directory
-    deploy       creates virtual machines
-    deploy-k8s   deploys kubernetes
-    destroy      destroys virtual machines
-    config       configures kubectl
-    shell        opens a shell in the manage-cluster container
+    template       creates a template cluster configuration directory
+    deploy         creates virtual machines
+    deploy-k8s     deploys kubernetes
+    config-cluster customize cluster with CRS4-specific configuration
+    destroy        destroys virtual machines
+    config         configures kubectl
+    shell          opens a shell in the manage-cluster container
 
   CLUSTER_DIR:
     Path to the directory containing the cluster's configuration
@@ -76,43 +77,6 @@ For additional functionality see the output from `manage-cluster -h`:
 For details about what manage-cluster does, check out
 https://github.com/kubernetes-incubator/kubespray/tree/master/contrib/terraform/openstack
 
-
-## Troubleshooting
-
-### Helm
-
-When using Helm for the first time, the following error can occur:
-```
-Error: configmaps is forbidden: User "system:serviceaccount:kube-system:default" cannot list configmaps in the namespace "kube-system"
-```
-
-In order to fix it type:
-
-```
-kubectl create serviceaccount --namespace kube-system tiller
-kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-helm init --service-account tiller --upgrade
-```
-(ref: https://stackoverflow.com/questions/46672523/helm-list-cannot-list-configmaps-in-the-namespace-kube-system)
-
-### Pods stuck in pending state
-
-Pods whose definition includes volumes might get stuck in pending state if a (specific or, at least, default) StorageClass has not been defined on the Kubernetes cluster. To define a StorageClass which relies on Cinder (the OpenStack Block Storage service) type:
-
-```
-kubectl create -f storageclass.yaml
-```
-
-
-Another solution is to enable persistent volumes by default, editing the <CLUSTER-CONFIG-DIR>/tf/group_vars/k8s-cluster/k8s-cluster.yml KubeSpray config file:
-
-```
-
-# Add Persistent Volumes Storage Class for corresponding cloud provider ( OpenStack is only supported now )
- persistent_volumes_enabled: true
-
-```
 
 ## Copyright and License
 
