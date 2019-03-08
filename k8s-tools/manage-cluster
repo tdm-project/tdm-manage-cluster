@@ -218,6 +218,10 @@ network_name = "${defaultClusterName}-net"
 external_net = "2f0db58d-fd9f-4cd8-83fb-59c225a06dc0"
 subnet_cidr = "10.99.99.0/24"
 floatingip_pool = "external_net"
+
+# scheduling policies
+master_vm_scheduler_policy = "soft-anti-affinity"
+node_vm_scheduler_policy = "soft-anti-affinity"
 END
 }
 
