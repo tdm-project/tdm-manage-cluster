@@ -417,7 +417,9 @@ END
   fi
 
   local master_ip="$(get_master_ip)"
-  unconfig_cluster
+  # We ignore failures in the unconfig_cluster step, if the deploy-k8s step hasn't been run,
+  # The nodes may not have all the required dependencies to execute the playbook
+  unconfig_cluster || true
   docker_run_tf terraform init ../../contrib/terraform/openstack;
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
