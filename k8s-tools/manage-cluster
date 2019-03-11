@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.1rc2
+VERSION=1.2rc1
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
@@ -218,6 +218,10 @@ network_name = "${defaultClusterName}-net"
 external_net = "2f0db58d-fd9f-4cd8-83fb-59c225a06dc0"
 subnet_cidr = "10.99.99.0/24"
 floatingip_pool = "external_net"
+
+# scheduling policies
+master_vm_scheduler_policy = "soft-anti-affinity"
+node_vm_scheduler_policy = "soft-anti-affinity"
 END
 }
 
@@ -413,7 +417,9 @@ END
   fi
 
   local master_ip="$(get_master_ip)"
-  unconfig_cluster
+  # We ignore failures in the unconfig_cluster step, if the deploy-k8s step hasn't been run,
+  # The nodes may not have all the required dependencies to execute the playbook
+  unconfig_cluster || true
   docker_run_tf terraform init ../../contrib/terraform/openstack;
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
