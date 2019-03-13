@@ -73,6 +73,13 @@ function usage_error() {
   exit 2
 }
 
+function assert_kubectl_installed() {
+  if ! command -v kubectl >/dev/null 2>&1 ; then
+    error_log "Can't find kubectl executable in PATH.  Kubectl is required to be installed on the client machine"
+    exit 2
+  fi
+}
+
 function print_ostack_vars() {
   for varname in "${!OS_@}"; do
     if [[ "${varname}" == "OS_PASSWORD" ]]; then
@@ -270,18 +277,20 @@ function get_ssh_user() {
   awk '!/^ *#/ && /ssh_user *=/ { gsub(/"/, "", $3); print $3; }' ${CLUSTER_DIR}/tf/cluster.tf
 }
 
-function get_master_ip () {
-  local master_ip=$(docker_run_tf /bin/sh -c "terraform output -json | jq '.k8s_master_fips.value[0]' | sed -e 's/[\"]//g'")
-  echo ${master_ip//[$'\t\r\n']}
+function get_tf_json() {
+  docker_run_tf terraform output -json
+}
+
+function _get_master_ips_internal() {
+  get_tf_json | jq '.k8s_master_fips.value[]' | tr '"\n' ' '
 }
 
 function copy_certs() {
-  local target_folder="${1}"
+  local master_ip=${1}
+  local target_folder="${2}"
   local key_file_path="${CLUSTER_DIR}/artifacts/$(get_key_file_name)"
   local cluster_name="$(get_cluster_name)"
   local ssh_user="$(get_ssh_user)"
-  local master_ip="$(get_master_ip)"
-  log "master IP: ${master_ip}"
 
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${key_file_path}" \
       ${ssh_user}@${master_ip} \
@@ -296,6 +305,8 @@ function copy_certs() {
 
 
 function deploy_k8s() {
+  assert_kubectl_installed
+
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
              "ssh-add -k '${keyfile_path}' " \
@@ -310,38 +321,59 @@ function deploy_k8s() {
 }
 
 function config_client () {
+  assert_kubectl_installed
+
 #FIXME use internal master ip instead of the external one, otherwise ca is invalid
 #Current workaround: set skip tls verify
   local targetFolder="${CLUSTER_DIR}/artifacts"
   local clusterName="$(get_cluster_name)"
-  local master_ip=$(get_master_ip)
+  local master_ips=( $(_get_master_ips_internal) )
+
+  if [[ ${#master_ips[*]} == 0 ]]; then
+    error_log "Couldn't get master IPs from terraform state"
+    exit 1
+  fi
+
+  debug_log "Got master IPs:  ${master_ips[*]}"
 
   # copy certs to the "artifacts" folder
-  copy_certs "${targetFolder}"
+  copy_certs ${master_ips[0]} "${targetFolder}"
 
   debug_log "Generating KubeConfig"
   cat > "${CLUSTER_DIR}/artifacts/kubeconfig" <<KCF
 apiVersion: v1
-clusters:
-- cluster:
-    insecure-skip-tls-verify: true
-    server: https://${master_ip}:6443
-#    certificate-authority: ca.pem
-  name: ${clusterName}
-contexts:
-- context:
-    cluster: ${clusterName}
-    user: ${clusterName}-admin
-  name: ${clusterName}-system
 kind: Config
+clusters:
+contexts:
 preferences: {}
 users:
-- name: ${clusterName}-admin
-  user:
-    as-user-extra: {}
-    client-certificate: apiserver-client.crt
-    client-key: apiserver-client.key
 KCF
+  kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
+    set preferences.colors true >/dev/null
+
+  local username="${clusterName}-admin"
+  kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
+    set-credentials "${username}" \
+      --client-certificate=${CLUSTER_DIR}/artifacts/apiserver-client.crt \
+      --client-key=${CLUSTER_DIR}/artifacts/apiserver-client.key >/dev/null
+
+  local i=0
+  for master in "${master_ips[@]}"; do
+    debug_log "Adding master ${master} to kubeconfig"
+    local master_name=""
+    i=$(( $i+1 ))
+    if [[ $i > 1 ]]; then
+      master_name=$(printf "%s-m%d" "${clusterName}" $i)
+    else
+      master_name="${clusterName}"
+    fi
+    kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
+      set-cluster "${master_name}" --server=https://${master}:6443 --insecure-skip-tls-verify=true >/dev/null
+    kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
+      set-context "${master_name}" "--cluster=${master_name}" "--user=${username}" >/dev/null
+  done
+
+  kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" use-context "${clusterName}" >/dev/null
 
   local sourcing_file="${CLUSTER_DIR}/artifacts/${clusterName}.sh"
   cat > "${sourcing_file}"  <<END
@@ -349,19 +381,24 @@ KCF
 # Source this file to access the kubernetes cluster ${clusterName}
 #
 # DON'T edit this file!  It will be overwritten if you re-run
-# manage-cluster config or manage-cluster deploy-k8s.
+# manage-cluster config-client or manage-cluster deploy-k8s.
 
 export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
-kubectl config use-context ${clusterName}-system
+random_context=\$(kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig"  get-clusters | sed -e '1d' | sort --random-sort | head -n 1)
+kubectl config use-context \${random_context}
 
 END
 
   log "
   Now you can type:
   export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
-  kubectl config use-context ${clusterName}-system
+  kubectl config use-context ${clusterName}
 
   OR, you can source ${sourcing_file}
+
+  If this is a multi-master cluster, remember that you can access it
+  through the auxiliary contexts as well (run 'kubectl config get-contexts'
+  to print out the list)
   "
 
   if command -v helm >/dev/null; then
@@ -416,7 +453,7 @@ END
     exit 0
   fi
 
-  local master_ip="$(get_master_ip)"
+  local master_ips=( $(_get_master_ips_internal) )
   # We ignore failures in the unconfig_cluster step, if the deploy-k8s step hasn't been run,
   # The nodes may not have all the required dependencies to execute the playbook
   unconfig_cluster || true
@@ -424,8 +461,17 @@ END
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
   # remove the master IP from the known hosts file, if it's there
-  debug_log "Removing local host key for master node ${master_ip}"
-  ssh-keygen -R ${master_ip} && true
+  for master in "${master_ips[*]}"; do
+    debug_log "Removing local host key for master node ${master}"
+    ssh-keygen -R ${master} && true
+  done
+}
+
+function get_master_ips() {
+  local master_ips=( $(_get_master_ips_internal) )
+  for master in "${master_ips[@]}"; do
+    echo ${master}
+  done
 }
 
 function open_shell() {
@@ -452,6 +498,7 @@ function help() {
     config-cluster run ansible playbook to configure the kubernetes cluster
     destroy        destroys virtual machines
     config-client  configures kubectl
+    get-master-ips prints out master IPs for the cluster, one per line (cluster must be deployed)
     shell          opens a shell in the manage-cluster container
 
   CLUSTER_DIR:
@@ -490,6 +537,7 @@ fi
 # shift arguments forward by the amount processed by getopts
 shift $(($OPTIND - 1))
 
+SkipInit=false
 COMMAND="${1}"
 shift
 
@@ -509,12 +557,18 @@ case "$COMMAND" in
     FUNCTION=destroy_cluster
     ;;
   config-client)
+    SkipInit=true
     FUNCTION=config_client
+    ;;
+  get-master-ips)
+    SkipInit=true
+    FUNCTION=get_master_ips
     ;;
   shell)
     FUNCTION=open_shell
     ;;
   template)
+    SkipInit=true
     FUNCTION=gen_template
     ;;
   *)
@@ -533,7 +587,13 @@ if [[ "${FUNCTION}" != gen_template ]]; then
   if [[ ! -d "${CLUSTER_DIR}" ]]; then
     usage_error "Cluster configuration directory ${CLUSTER_DIR} doens't exist"
   fi
-  init
 fi
+
+if [[ "${SkipInit}" != "true" ]]; then
+  init
+else
+  debug_log "Skipping init function for command ${FUNCTION}"
+fi
+
 $FUNCTION
 
