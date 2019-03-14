@@ -65,7 +65,8 @@ For additional functionality see the output from `manage-cluster -h`:
     deploy-k8s     deploys kubernetes
     config-cluster customize cluster with CRS4-specific configuration
     destroy        destroys virtual machines
-    config         configures kubectl
+    config-client  configures kubectl
+    get-master-ips prints out master IPs for the cluster, one per line (cluster must be deployed)
     shell          opens a shell in the manage-cluster container
 
   CLUSTER_DIR:
