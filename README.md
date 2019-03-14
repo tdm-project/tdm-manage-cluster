@@ -39,6 +39,7 @@ Edit `tf/cluster.tf` to set the terraform parameters you need.  After that
 
     manage-cluster deploy .  # This runs terraform to provision the infrastructure
     manage-cluster deploy-k8s .  # This runs kubespray to deploy Kubernetes
+    manage-cluster config-cluster .  # This runs the ansible playbook ./config-cluster-playbook.yml
 
 At the end of the deployment procedure, follow the instructions on screen to
 access you Kubernetes cluster.
