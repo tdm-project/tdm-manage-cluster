@@ -461,9 +461,9 @@ END
   docker_run_tf terraform destroy -var-file=cluster.tf ../../contrib/terraform/openstack
 
   # remove the master IP from the known hosts file, if it's there
-  for master in "${master_ips[*]}"; do
-    debug_log "Removing local host key for master node ${master}"
-    ssh-keygen -R ${master} && true
+  for master in "${master_ips[@]}"; do
+    debug_log "Removing local host key for master node ${master}, if present"
+    ssh-keygen -R ${master} || true
   done
 }
 
