@@ -408,6 +408,38 @@ END
   fi
 }
 
+function get_dashboard_user_auth_secret(){
+  secret_type="${1:-'token'}"
+  if [[ ${secret_type} != "token" && ${secret_type} != "ca.crt" ]]; then
+    error_log "Undefined auth property"
+    exit -1
+  fi
+  local ssh_user="$(get_ssh_user)"
+  local keyfile_path="$(get_key_file_name)"
+  local master_ips="$(get_master_ips)"  
+  local get_secret_name_cmd="sudo KUBECONFIG=/etc/kubernetes/admin.conf kubectl -n kube-system get secret | grep dashboard-admin-user | awk '{print \$1}'"
+  local secret_name=$(ssh -i artifacts/${keyfile_path} ${ssh_user}@${master_ips[0]} "${get_secret_name_cmd}")
+  debug_log "Admin dashboard secret name: ${secret_name}"
+  if [[ -n "${DEBUG:-}" ]]; then
+    local get_json_secret_cmd="sudo KUBECONFIG=/etc/kubernetes/admin.conf kubectl get secret -n kube-system ${secret_name} -o json"    
+    local json_secret=$(ssh -i artifacts/${keyfile_path} ${ssh_user}@${master_ips[0]} "${get_json_secret_cmd}")
+    debug_log "Dashboard AdminUser Secret: ${json_secret}"  
+  fi
+  local get_auth_cmd="sudo KUBECONFIG=/etc/kubernetes/admin.conf kubectl get secret -n kube-system ${secret_name} -o json | jq '.data[\"${secret_type}\"]' | tr -d \\\" | base64 --decode"    
+  local auth_secret=$(ssh -i artifacts/${keyfile_path} ${ssh_user}@${master_ips[0]} "${get_auth_cmd}")
+  debug_log "Dashboard AdminUser Secret: ${auth_secret}"  
+  echo ${auth_secret}
+}
+
+function get_dashboard_user_auth_token(){
+  echo $(get_dashboard_user_auth_secret "token")
+}
+
+function get_dashboard_user_auth_cert(){
+  echo $(get_dashboard_user_auth_secret "ca.crt")
+}
+
+
 function _run_playbook() {
 
   local playbook_file="${1}"
@@ -570,6 +602,14 @@ case "$COMMAND" in
   template)
     SkipInit=true
     FUNCTION=gen_template
+    ;;
+  get_user_dashboard_token)
+    SkipInit=true
+    FUNCTION=get_dashboard_user_auth_token
+    ;;
+  get_user_dashboard_cert)
+    SkipInit=true
+    FUNCTION=get_dashboard_user_auth_cert
     ;;
   *)
     usage_error "Command \"$COMMAND\" not found. "
