@@ -5,3 +5,4 @@
     name:
       - nfs-client
       - vim
+      - jq
