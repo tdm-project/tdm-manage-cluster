@@ -82,7 +82,7 @@
   loop: "{{ k8s_resources.files | list }}"
 
 - name: Label worker nodes
-  shell: for node in $(kubectl get nodes -l node-role.kubernetes.io/node='' -o name ); do kubectl label ${node} tdm.role.worker='' ; done
+  shell: for node in $(kubectl get nodes -l node-role.kubernetes.io/node='' -o name ); do kubectl label --overwrite ${node} tdm.role.worker='' ; done
 
 ####### Install tiller on cluster
 - name: print message
