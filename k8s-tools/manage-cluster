@@ -422,7 +422,7 @@ function generate_dashboard_admin_user_secrets(){
       error_log "No 'token' found on the 'dashboard-admin-user' secret"
     else
       local token_file="${CLUSTER_DIR}/artifacts/dashboard.token"
-      echo "${token}" > "${token_file}"
+      echo "${token}" | base64 --decode > "${token_file}"
       log "Kubernetes Dashboard Authentication Token located at '${token_file}'"
     fi
   fi
