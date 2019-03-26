@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.2rc1
+VERSION=1.3rc1
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
@@ -301,6 +301,7 @@ function copy_certs() {
   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${key_file_path}" \
       ${ssh_user}@${master_ip} \
       sudo cat "/etc/ssl/etcd/ssl/ca.pem" > "${target_folder}/ca.pem"
+  chmod go-rwx "${target_folder}"/apiserver-client.{key,crt} "${target_folder}/ca.pem"
 }
 
 
@@ -387,8 +388,14 @@ export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
 random_context=\$(kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig"  get-clusters | sed -e '1d' | sort --random-sort | head -n 1)
 kubectl config use-context \${random_context}
 
+# print cluster access points
+kubectl cluster-info
 END
 
+  export KUBECONFIG="${CLUSTER_DIR}/artifacts/kubeconfig"
+  ### From here on we use kubectl with the KUBECONFIG environment variable
+
+  kubectl cluster-info >&2
   log "
   Now you can type:
   export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
@@ -399,11 +406,40 @@ END
   If this is a multi-master cluster, remember that you can access it
   through the auxiliary contexts as well (run 'kubectl config get-contexts'
   to print out the list)
+
   "
 
   if command -v helm >/dev/null; then
     if ! helm repo add crs4 https://crs4.github.io/helm-charts/ 2>/dev/null ; then
       log "Please initialize helm and add https://crs4.github.io/helm-charts/ to your repositories to install CRS4's charts"
+    fi
+  fi
+
+  # generate dashboard secrets (token and certificate) for authenticating the dashboard admin user
+  _generate_dashboard_admin_user_secrets || true
+  log "\n==========================="
+  log   "Finished. Client configured"
+}
+
+function _generate_dashboard_admin_user_secrets() {
+  if [[ -z "${KUBECONFIG:-}" ]]; then
+    error_log "BUG!  KUBECONFIG not set when calling _generate_dashboard_admin_user_secrets"
+    exit 3
+  fi
+
+  local secret_name=$(kubectl get secret -n kube-system  -o custom-columns=NAME:.metadata.name | grep dashboard-admin-user 2>/dev/null)
+  if [[ -z "${secret_name}" ]]; then
+    error_log "Unable to find the 'dashboard-admin-user' secret on your k8s installation"
+    error_log "Maybe the dashboard hasn't been initialized yet"
+  else
+    local token=$(kubectl get secret -n kube-system ${secret_name} -o jsonpath="{.data.token}")
+    if [[ -z "${token}" ]]; then
+      error_log "No 'token' found on the 'dashboard-admin-user' secret"
+    else
+      local token_file="${CLUSTER_DIR}/artifacts/dashboard.token"
+      echo "${token}" | base64 --decode > "${token_file}"
+      chmod go-rwx "${token_file}"
+      log "Kubernetes Dashboard Authentication Token located at '${token_file}'"
     fi
   fi
 }
