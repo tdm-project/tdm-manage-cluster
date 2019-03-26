@@ -606,7 +606,7 @@ case "$COMMAND" in
   template)
     SkipInit=true
     FUNCTION=gen_template
-    ;;  
+    ;;
   *)
     usage_error "Command \"$COMMAND\" not found. "
     ;;
