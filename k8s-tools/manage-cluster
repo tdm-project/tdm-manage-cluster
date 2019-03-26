@@ -384,8 +384,22 @@ KCF
 # DON'T edit this file!  It will be overwritten if you re-run
 # manage-cluster config-client or manage-cluster deploy-k8s.
 
-export KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
-random_context=\$(kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig"  get-clusters | sed -e '1d' | sort --random-sort | head -n 1)
+if [[ "\${SHELL}" == *bash ]]; then
+  ArtefactsDir=\$(cd \`dirname \$BASH_SOURCE[0]\` && pwd)
+  NewPath="\${ArtefactsDir}/kubeconfig"
+  # Prepend the current kubeconfig if it's not already there
+  [[ "\${KUBECONFIG}" == \${NewPath}* ]] || KUBECONFIG=\${NewPath}:\${KUBECONFIG}
+  unset ArtefactsDir NewPath
+else
+  # Sorry..if you don't use bash contribute your own path discovery code to manage-cluster
+  KUBECONFIG=${CLUSTER_DIR}/artifacts/kubeconfig:\$KUBECONFIG
+fi
+
+export KUBECONFIG
+echo "KUBECONFIG=\$KUBECONFIG"
+echo
+
+random_context=\$(kubectl config get-clusters | sed -e '1d' | sort --random-sort | head -n 1)
 kubectl config use-context \${random_context}
 
 # print cluster access points
