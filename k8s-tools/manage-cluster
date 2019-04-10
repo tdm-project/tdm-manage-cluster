@@ -199,7 +199,10 @@ flavor_bastion = "0298dfce-aa0f-45d0-91a6-ca8ac2313d94"
 number_of_etcd = 0
 
 # masters
+## regular masters are assigned a floating IP
 number_of_k8s_masters = 0
+## masters_ext_net are masters with a second interface on the external network
+## (IP set via DHCP) and no floating IP
 number_of_k8s_masters_ext_net = 0
 number_of_k8s_masters_no_etcd = 0
 number_of_k8s_masters_no_floating_ip = 0
