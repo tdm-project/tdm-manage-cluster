@@ -113,22 +113,19 @@ class TerraformState(object):
 
     def choose_random_fip_instance(self):
         if len(self._fip_associations) == 0:
-            raise Exception("No floating IPs available!!!")
-        fip = random.choice(self._fip_associations.values())
-        instance_id = fip['primary']['attributes']['instance_id']
-        if instance_id not in self._instances:
-            raise Exception("Unable to find instance with id %s on the actual terraform state" % instance_id)
-        return self._instances[instance_id]
+            raise Exception("No public IP available!!!")
+        return random.choice(self._fip_associations.values())
 
     @staticmethod
-    def parse_json_data(json_data):
+    def parse_json_data(json_data):        
         fips = {}
+        public_ips = {}
         instances = {}
         groups = {x: [] for x in KubeSprayGroupName.list()}
 
         for m in json_data['modules']:
             for r in m['resources']:
-                resource = m['resources'][r]
+                resource = m['resources'][r]                
                 rtype = resource['type']
                 if rtype == 'openstack_compute_instance_v2':
                     instance = Instance(resource)
@@ -138,6 +135,9 @@ class TerraformState(object):
                         for g in instance.kubespray_groups:
                             if g in KubeSprayGroupName.list():
                                 groups[g].append(instance.id)
+                    if "k8s_master_ext_net" in r: # check master subtype by name
+                        instance.floating_ip = resource['primary']['attributes']['network.0.fixed_ip_v4']
+                        public_ips[instance.floating_ip] = instance
                 elif rtype == 'openstack_compute_floatingip_associate_v2':
                     fips[resource['primary']['attributes']['instance_id']] = resource
 
@@ -145,8 +145,9 @@ class TerraformState(object):
         for i_id, instance in instances.items():
             if i_id in fips:
                 instance.floating_ip = fips[i_id]['primary']['attributes']['floating_ip']
+                public_ips[instance.floating_ip] = instance
 
-        return instances, fips, groups
+        return instances, public_ips, groups
 
     @staticmethod
     def load(filename):
