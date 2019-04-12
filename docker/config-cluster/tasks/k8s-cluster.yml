@@ -1,8 +1,8 @@
 ---
-- name: Install Ubuntu or Debian node requirements
+- name: Install Ubuntu or Debian cluster node requirements
   apt:
     update_cache: yes
+    install_recommends: no
     name:
       - nfs-client
       - vim
-      - jq

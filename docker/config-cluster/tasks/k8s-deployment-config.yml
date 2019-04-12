@@ -1,5 +1,80 @@
 ---
 
+
+### Configure security group and access from JIC network
+
+- name: Copy cluster.tf to master node
+  copy:
+    src: "{{ playbook_dir }}/cluster.tf"
+    dest: /tmp/cluster.tf
+    mode: 400
+    owner: root
+
+- name: Get cluster name
+  command: awk -F= '/\<cluster_name =/ { gsub(/ |"/, "", $0); print $2; }' /tmp/cluster.tf
+  register: cluster_name
+  changed_when: False
+
+- name: deleting cluster.tf
+  file:
+    path: /tmp/cluster.tf
+    state: absent
+
+- set_fact:
+    cloud: "{{ cluster_name.stdout }}"
+    sg_name: "{{ cluster_name.stdout }}-k8s"
+
+- name: Print facts
+  debug:
+    msg: "Got cluster name '{{ cloud }}' and sg name '{{ sg_name }}'"
+
+- file:
+    path: /etc/openstack
+    state: directory
+    owner: root
+    mode: 755
+
+- name: Generating clouds.yaml
+  script: "cloud_cfg_to_yaml.py /etc/kubernetes/cloud_config {{ cloud }} /etc/openstack/clouds.yaml"
+
+- file:
+    path: /etc/openstack/clouds.yaml
+    mode: 600
+
+- name: Set ICMP ingress rule between JIC and this cluster
+  os_security_group_rule:
+    state: present
+    cloud: "{{ cloud }}"
+    security_group: "{{ sg_name }}"
+    direction: ingress
+    remote_ip_prefix: "{{ jic_cluster.net }}"
+    ethertype: IPv4
+    protocol: icmp
+
+- name: Set TCP ingress rule between JIC and this cluster
+  os_security_group_rule:
+    state: present
+    cloud: "{{ cloud }}"
+    security_group: "{{ sg_name }}"
+    direction: ingress
+    ethertype: IPv4
+    protocol: tcp
+    remote_ip_prefix: "{{ jic_cluster.net }}"
+    port_range_min: 1
+    port_range_max: 65535
+
+- name: Set UDP ingress rule between JIC and this cluster
+  os_security_group_rule:
+    state: present
+    cloud: "{{ cloud }}"
+    security_group: "{{ sg_name }}"
+    direction: ingress
+    ethertype: IPv4
+    protocol: udp
+    remote_ip_prefix: "{{ jic_cluster.net }}"
+    port_range_min: 1
+    port_range_max: 65535
+
 ### install helm executable
 - name: "Check helm executable"
   shell: helm version --client --short | grep "{{ helm.version }}"
@@ -102,17 +177,10 @@
     src: "{{ playbook_dir }}/helm-resources"
     dest: /root/manage-cluster/
 
-- name: Install jq
-  apt:
-    update_cache: yes
-    name:
-      - jq
-    install_recommends: no
-
 - name: pause for tiller
   pause:
     echo: no
-    seconds: 5
+    seconds: 15
   changed_when: false
 
 - name: Check that Tiller is ready before continuing
