@@ -20,7 +20,7 @@ FROM hashicorp/terraform:0.11.11 AS manage-cluster-base
 #ARG kubespray_version="v2.8.2"
 
 ARG git_repo=tdm-project/kubespray.git
-ARG kubespray_version="v2.8.4_masters_on_external_network"
+ARG kubespray_version="v2.8.4_external_network_only"
 
 LABEL kubespray_version="${kubespray_version}"
 
