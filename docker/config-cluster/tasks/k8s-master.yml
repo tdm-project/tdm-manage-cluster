@@ -1,1 +1,14 @@
 ---
+- name: Install Ubuntu or Debian master node packaged requirements
+  apt:
+    update_cache: yes
+    install_recommends: no
+    name:
+      - jq
+      - python3-pip
+      - python3-setuptools
+      - python3-openstackclient
+
+- name: Install openstacksdk
+  pip:
+    name: openstacksdk

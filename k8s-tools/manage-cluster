@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.4rc3
+VERSION=1.4rc4
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
@@ -549,7 +549,8 @@ function help() {
     template       creates a template cluster configuration directory
     deploy         creates virtual machines
     deploy-k8s     deploys kubernetes
-    config-cluster run ansible playbook to configure the kubernetes cluster
+    config-cluster run ansible playbook to configure the kubernetes cluster. The default
+                     playbook contains CRS4-specific customizations.
     destroy        destroys virtual machines
     config-client  configures kubectl
     get-master-ips prints out master IPs for the cluster, one per line (cluster must be deployed)
