@@ -1,8 +1,6 @@
 ---
 
-
 ### Configure security group and access from JIC network
-
 - name: Copy cluster.tf to master node
   copy:
     src: "{{ playbook_dir }}/cluster.tf"
@@ -28,7 +26,8 @@
   debug:
     msg: "Got cluster name '{{ cloud }}' and sg name '{{ sg_name }}'"
 
-- file:
+- name: Set /etc/openstack permissions
+  file:
     path: /etc/openstack
     state: directory
     owner: root
@@ -37,7 +36,8 @@
 - name: Generating clouds.yaml
   script: "cloud_cfg_to_yaml.py /etc/kubernetes/cloud_config {{ cloud }} /etc/openstack/clouds.yaml"
 
-- file:
+- name: Set /etc/openstack/clouds.yaml permissions
+  file:
     path: /etc/openstack/clouds.yaml
     mode: 600
 
@@ -158,6 +158,12 @@
 
 - name: Label worker nodes
   shell: for node in $(kubectl get nodes -l node-role.kubernetes.io/node='' -o name ); do kubectl label --overwrite ${node} tdm.role.worker='' ; done
+
+- name: Label data nodes
+  shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl label --overwrite ${node} tdm.role.datanode='' ; done
+
+- name: Taint data nodes
+  shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl taint --overwrite nodes ${node} tdm.role.datanode=:NoSchedule ; done
 
 ####### Install tiller on cluster
 - name: print message

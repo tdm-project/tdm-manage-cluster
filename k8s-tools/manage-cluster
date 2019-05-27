@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.4rc5
+VERSION=1.5rc1
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
@@ -209,10 +209,14 @@ number_of_k8s_masters_no_floating_ip = 0
 number_of_k8s_masters_no_floating_ip_no_etcd = 0
 flavor_k8s_master = "c85e5d87-7b6b-437f-8efe-694782cef1ba"
 
-# nodes
+# worker nodes
 number_of_k8s_nodes = 0
 number_of_k8s_nodes_no_floating_ip = 0
 flavor_k8s_node = "c85e5d87-7b6b-437f-8efe-694782cef1ba"
+
+# worker data nodes
+number_of_k8s_data_nodes_ext_net = 0
+flavor_k8s_data_node = "ad25e075-11f0-412e-8514-d6b4c83b362f"
 
 # GlusterFS
 # either 0 or more than one
