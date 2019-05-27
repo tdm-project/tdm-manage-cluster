@@ -159,6 +159,9 @@
 - name: Label worker nodes
   shell: for node in $(kubectl get nodes -l node-role.kubernetes.io/node='' -o name ); do kubectl label --overwrite ${node} tdm.role.worker='' ; done
 
+- name: Label data nodes
+  shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl label --overwrite ${node} tdm.role.datanode='' ; done
+
 ####### Install tiller on cluster
 - name: print message
   debug:
