@@ -162,6 +162,9 @@
 - name: Label data nodes
   shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl label --overwrite ${node} tdm.role.datanode='' ; done
 
+- name: Taint data nodes
+  shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl taint --overwrite nodes ${node} tdm.role.datanode=:NoSchedule ; done
+
 ####### Install tiller on cluster
 - name: print message
   debug:
