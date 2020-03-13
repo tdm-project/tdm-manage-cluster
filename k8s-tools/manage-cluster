@@ -290,7 +290,8 @@ function get_tf_json() {
 }
 
 function _get_master_ips_internal() {
-  get_tf_json | jq '.k8s_master_fips.value[]' | tr '"\n' ' '
+  # Run entire command in container to avoid requiring jq on client machine
+  docker_run_tf /bin/bash -c "terraform output -json | jq '.k8s_master_fips.value[]' | tr '\"\n' ' '"
 }
 
 function copy_certs() {
