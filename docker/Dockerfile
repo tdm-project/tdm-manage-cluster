@@ -1,5 +1,5 @@
 
-# Copyright 2018-2019 CRS4 (http://www.crs4.it/)
+# Copyright 2018-2020 CRS4 (http://www.crs4.it/)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,19 +24,33 @@ ARG kubespray_version="v2.8.4_external_network_only_with_datanodes"
 
 LABEL kubespray_version="${kubespray_version}"
 
-COPY ssh_config /etc/ssh/
-COPY requirements.txt /root/manage-cluster-py-requirements.txt
 
-RUN apk update && \
-  apk add --no-cache --virtual .build-deps python2-dev gcc libc-dev libffi-dev openssl-dev make && \
-  apk add --no-cache jq git python2 py2-pip bash && \
-  pip install --no-cache-dir --upgrade pip && \
-  pip install -r /root/manage-cluster-py-requirements.txt  && \
-  apk del --purge .build-deps && \
-  rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
+RUN apk update \
+  && apk add --no-cache \
+        bash \
+        git \
+        jq \
+        py3-pip \
+        python3 \
+  && pip3 install --no-cache-dir --upgrade pip \
+  && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
 WORKDIR /tmp
 ENV KUBESPRAY_DIR=/kubespray
+COPY ssh_config /etc/ssh/
+COPY requirements.txt /root/manage-cluster-py-requirements.txt
+
+RUN apk update \
+  && apk add --no-cache --virtual .build-deps \
+        gcc \
+        libc-dev \
+        libffi-dev \
+        make \
+        openssl-dev \
+        python3-dev \
+  && pip3 install -r /root/manage-cluster-py-requirements.txt \
+  && apk del --purge .build-deps \
+  && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
 RUN git clone --depth 1 --single-branch --branch "${kubespray_version}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
  && cd ${KUBESPRAY_DIR} \
