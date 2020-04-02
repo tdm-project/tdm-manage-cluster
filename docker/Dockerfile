@@ -16,14 +16,13 @@
 FROM hashicorp/terraform:0.11.14 AS manage-cluster-base
 
 # KubeSpray repo and version
-#ARG git_repo=kubernetes-sigs/kubespray.git
-#ARG kubespray_version="v2.8.2"
+ARG git_repo=kubernetes-sigs/kubespray.git
+ARG base_kubespray_version="v2.8.4"
 
-ARG git_repo=tdm-project/kubespray.git
-ARG kubespray_version="v2.8.4_external_network_only_with_datanodes"
-
-LABEL kubespray_version="${kubespray_version}"
-
+COPY ssh_config /etc/ssh/
+WORKDIR /tmp
+ENV KUBESPRAY_DIR=/kubespray
+ENV INVENTORY_DIR=/inventory-dir
 
 RUN apk update \
   && apk add --no-cache \
@@ -33,47 +32,44 @@ RUN apk update \
         py3-pip \
         python3 \
   && pip3 install --no-cache-dir --upgrade pip \
+  && pip3 install --no-cache-dir 'GitPython==3.1' \
   && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
-WORKDIR /tmp
-ENV KUBESPRAY_DIR=/kubespray
-COPY ssh_config /etc/ssh/
-COPY requirements.txt /root/manage-cluster-py-requirements.txt
+RUN git clone --depth 1 --single-branch --branch "${base_kubespray_version}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
+ && cd ${KUBESPRAY_DIR} \
+ && git fetch --tags \
+ && git checkout "${base_kubespray_version}"
+
+COPY v2.8.4.patch /home/manageks/
+RUN cd "${KUBESPRAY_DIR}" \
+ && git apply /home/manageks/v2.8.4.patch
 
 RUN apk update \
   && apk add --no-cache --virtual .build-deps \
-        gcc \
-        libc-dev \
-        libffi-dev \
-        make \
-        openssl-dev \
-        python3-dev \
-  && pip3 install -r /root/manage-cluster-py-requirements.txt \
+         gcc \
+         libc-dev \
+         libffi-dev \
+         make \
+         openssl-dev \
+         python3-dev \
+  && pip3 install --no-cache-dir -r "${KUBESPRAY_DIR}/requirements.txt" \
   && apk del --purge .build-deps \
   && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
-RUN git clone --depth 1 --single-branch --branch "${kubespray_version}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
- && cd ${KUBESPRAY_DIR} \
- && sed -i \
-        -e 's|\<contrib/terraform/openstack/ansible_bastion_template.txt\>|../../contrib/terraform/openstack/ansible_bastion_template.txt|g' \
-        -e "s|\<contrib/terraform/group_vars/no-floating.yml\>|${KUBESPRAY_DIR}/inventory/cluster/group_vars/no-floating.yml|g" \
-        contrib/terraform/openstack/modules/compute/main.tf \
- && rm -rf .git \
- && find . -type d -print0 | xargs -0 chmod a+rwx \
- && find . -type f -print0 | xargs -0 chmod a+rw
 
 COPY config-cluster /home/manageks/config-cluster
-COPY create_inventory.py /usr/local/bin/
-RUN chmod a+rx /usr/local/bin/create_inventory.py \
-    && find /home -type d -print0 | xargs -0 chmod a+rx \
-    && find /home -type f -print0 | xargs -0 chmod a+r
+COPY create_inventory.py upgrade.py /usr/local/bin/
+RUN mkdir ${INVENTORY_DIR} \
+ && chmod a+rx /usr/local/bin/create_inventory.py /usr/local/bin/upgrade.py \
+ && find /home "${KUBESPRAY_DIR}" -type d -print0 | xargs -0 chmod a+rx \
+ && find /home "${KUBESPRAY_DIR}" -type f -print0 | xargs -0 chmod a+r
 
 #####################################
 FROM manage-cluster-base AS manage-cluster-tf
 
 # USER -> this image is run as the local system user by the manage-cluster script
 
-WORKDIR ${KUBESPRAY_DIR}/inventory/cluster
+WORKDIR ${INVENTORY_DIR}/cluster
 ENTRYPOINT []
 
 

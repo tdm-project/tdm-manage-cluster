@@ -30,6 +30,7 @@ TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 ### "Constants" ###
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray
+KsVersionStampFilename="kubespray_deployer_version"
 
 function abspath() {
   local path="${*}"
@@ -117,9 +118,14 @@ function docker_base_cmd() {
     docker_cmdline+=(-e "${varname}=${!varname:-}")
   done
 
-  docker_cmdline+=(-v ${CLUSTER_DIR}/artifacts:${KubesprayContainerDir}/inventory/artifacts)
-  docker_cmdline+=(-v ${CLUSTER_DIR}/tf/:${KubesprayContainerDir}/inventory/cluster)
-  docker_cmdline+=(-w ${KubesprayContainerDir}/inventory/cluster)
+  #docker_cmdline+=(-v ${CLUSTER_DIR}/artifacts:${KubesprayContainerDir}/inventory/artifacts)
+  #docker_cmdline+=(-v ${CLUSTER_DIR}/tf/:${KubesprayContainerDir}/inventory/cluster)
+  #docker_cmdline+=(-w ${KubesprayContainerDir}/inventory/cluster)
+
+  docker_cmdline+=(-v ${CLUSTER_DIR}/artifacts:/inventory-dir/artifacts)
+  docker_cmdline+=(-v ${CLUSTER_DIR}/tf/:/inventory-dir/cluster)
+  docker_cmdline+=(-w /inventory-dir/cluster)
+
 
   debug_log "docker_base_cmd: ${docker_cmdline[@]}"
 }
@@ -211,6 +217,7 @@ number_of_k8s_masters_no_floating_ip_no_etcd = 0
 flavor_k8s_master = "c85e5d87-7b6b-437f-8efe-694782cef1ba"
 
 # worker nodes
+number_of_k8s_nodes_ext_net = 0
 number_of_k8s_nodes = 0
 number_of_k8s_nodes_no_floating_ip = 0
 flavor_k8s_node = "c85e5d87-7b6b-437f-8efe-694782cef1ba"
@@ -262,8 +269,8 @@ function init() {
 }
 
 function deploy_cluster() {
-  docker_run_tf terraform init ../../contrib/terraform/openstack
-  docker_run_tf terraform apply -auto-approve --var-file=cluster.tf ../../contrib/terraform/openstack
+  docker_run_tf terraform init ${KubesprayContainerDir}/contrib/terraform/openstack
+  docker_run_tf terraform apply -auto-approve --var-file=cluster.tf ${KubesprayContainerDir}/contrib/terraform/openstack
   docker_run_tf /usr/local/bin/create_inventory.py --output "${InventoryFile}"
   log "Now you can run ./manage-cluster deploy-k8s ${CLUSTER_DIR}"
 }
@@ -319,9 +326,15 @@ function deploy_k8s() {
   assert_kubectl_installed
 
   local keyfile_path="$(get_key_file_path)"
-  local cmd=('eval $(ssh-agent -s) ; ' \
-             "ssh-add -k '${keyfile_path}' " \
-             " && ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 ../../cluster.yml")
+  # TODO:  this command is getting sufficiently complex that it might warrant its own script
+  # The command of the compound sets the owner of the deployer_stamp_file
+  # to the owner of the cluster 'tf' directory (rather than leave it as owned by root).
+  local cmd=('eval $(ssh-agent -s); ' \
+             "ssh-add -k '${keyfile_path}'" \
+             " && ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 \${KUBESPRAY_DIR}/cluster.yml" \
+             " && echo \$(cd \${KUBESPRAY_DIR} && git describe --tags) | sed -e 's/^v//' >> ${KsVersionStampFilename}" \
+             " && chown \$(stat -c %u:%g . ) ${KsVersionStampFilename}")
+
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
   # generate KubeConfig
@@ -329,6 +342,19 @@ function deploy_k8s() {
   config_client
 
   log "\nTo finish configuring your cluster run\n\tmanage-cluster config-cluster ${CLUSTER_DIR}"
+}
+
+function upgrade_k8s() {
+  set -x
+  local keyfile_path="$(get_key_file_path)"
+  local cmd=('eval $(ssh-agent -s); ' \
+             "ssh-add -k '${keyfile_path}'" \
+             ' && /usr/local/bin/upgrade.py ${KUBESPRAY_DIR}' \
+             " && chown \$(stat -c %u:%g . ) ${KsVersionStampFilename}")
+
+  docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
+
+  log "Deployment upgrade finished."
 }
 
 function config_client () {
@@ -515,8 +541,8 @@ END
   # We ignore failures in the unconfig_cluster step, if the deploy-k8s step hasn't been run,
   # The nodes may not have all the required dependencies to execute the playbook
   unconfig_cluster || true
-  docker_run_tf terraform init ../../contrib/terraform/openstack;
-  docker_run_tf terraform destroy -auto-approve -var-file=cluster.tf ../../contrib/terraform/openstack
+  docker_run_tf terraform init "${KubesprayContainerDir}/contrib/terraform/openstack"
+  docker_run_tf terraform destroy -auto-approve -var-file=cluster.tf "${KubesprayContainerDir}/contrib/terraform/openstack"
 
   # remove the master IP from the known hosts file, if it's there
   for master in "${master_ips[@]}"; do
@@ -555,6 +581,7 @@ function help() {
     deploy-k8s     deploys kubernetes
     config-cluster run ansible playbook to configure the kubernetes cluster. The default
                    playbook contains CRS4-specific customizations.
+    upgrade-k8s    upgrade the version of Kubernetes installed on a cluster.
     destroy        destroys virtual machines
     config-client  configures kubectl
     get-master-ips prints out master IPs for the cluster, one per line (cluster must be deployed)
@@ -629,6 +656,9 @@ case "$COMMAND" in
   template)
     SkipInit=true
     FUNCTION=gen_template
+    ;;
+  upgrade-k8s)
+    FUNCTION=upgrade_k8s
     ;;
   *)
     usage_error "Command \"$COMMAND\" not found. "
