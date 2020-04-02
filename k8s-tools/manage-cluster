@@ -560,7 +560,12 @@ function get_master_ips() {
 
 function open_shell() {
   # Open a shell using the KubeSpray image, which runs as root
-  docker_run_ks "/bin/bash"
+  local keyfile_path="$(get_key_file_path)"
+  # We initialize the shell with the SSH credentials for the cluster.  This way,
+  # the user can directly run ansible playbooks from it.  We also initialize
+  local init_cmds="eval \\\$(ssh-agent -s) ; ssh-add -k '${keyfile_path}';"
+
+  docker_run_ks /bin/bash -c "/bin/bash --init-file <(echo \"${init_cmds}\")" || true
 }
 
 function print_version() {
