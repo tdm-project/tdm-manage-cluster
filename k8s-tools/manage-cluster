@@ -22,11 +22,12 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION=1.5rc2
+VERSION="${VERSION:-1.5rc3}"
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 #
+### "Constants" ###
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray
 
@@ -472,8 +473,6 @@ function _run_playbook() {
   local playbook_file="${1}"
   local keyfile_path="$(get_key_file_path)"
   local cmd=('eval $(ssh-agent -s) ; ' \
-             "mkdir -p /etc/ansible && " \
-             "ln -s /kubespray/roles /etc/ansible/roles ;" \
              "ssh-add -k '${keyfile_path}' && " \
              "ansible-playbook $(ansible_verbosity) --become -i '${InventoryFile}' --timeout 30 '${playbook_file}'")
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string

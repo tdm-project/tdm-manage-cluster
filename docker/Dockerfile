@@ -81,9 +81,11 @@ ENTRYPOINT []
 FROM manage-cluster-base AS manage-cluster-ks
 
 ENV ANSIBLE_LOCAL_TEMP=/tmp
+RUN mkdir -p /etc/ansible && ln -s ${KUBESPRAY_DIR}/roles /etc/ansible/roles
 
 # must run as root...haven't been able to make it work otherwise
 USER root
 WORKDIR /root/
 
 ENTRYPOINT []
+
