@@ -17,10 +17,11 @@ FROM hashicorp/terraform:0.11.14 AS manage-cluster-base
 
 # KubeSpray repo and version
 ARG git_repo=kubernetes-sigs/kubespray.git
-ARG base_kubespray_version="v2.8.4"
+ARG base_kubespray_version="2.12.5"
 
 COPY ssh_config /etc/ssh/
 WORKDIR /tmp
+ENV DEFAULT_KUBESPRAY_VERSION=${base_kubespray_version}
 ENV KUBESPRAY_DIR=/kubespray
 ENV INVENTORY_DIR=/inventory-dir
 
@@ -35,14 +36,25 @@ RUN apk update \
   && pip3 install --no-cache-dir 'GitPython==3.1' \
   && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
-RUN git clone --depth 1 --single-branch --branch "${base_kubespray_version}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
+RUN git clone --depth 1 --single-branch --branch "v${DEFAULT_KUBESPRAY_VERSION}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
  && cd ${KUBESPRAY_DIR} \
  && git fetch --tags \
- && git checkout "${base_kubespray_version}"
+ && git checkout "v${DEFAULT_KUBESPRAY_VERSION}"
 
-COPY v2.8.4.patch /home/manageks/
-RUN cd "${KUBESPRAY_DIR}" \
- && git apply /home/manageks/v2.8.4.patch
+COPY kubespray_patches /home/manageks/kubespray_patches
+# Apply a patch to kubespray if we have one.  The operation is rather
+# contrived because we want any error in `git apply` to rise to the RUN
+RUN \
+  set -x && \
+  cd "${KUBESPRAY_DIR}" \
+  && if [[ -f /home/manageks/kubespray_patches/v${DEFAULT_KUBESPRAY_VERSION}.patch ]]; then \
+        git apply /home/manageks/kubespray_patches/v${DEFAULT_KUBESPRAY_VERSION}.patch ; \
+     fi \
+  && find "${KUBESPRAY_DIR}" -print0 | xargs -0 chmod a+w
+# We make the repository world writable so that all users can change the checked out
+# kubespray version
+
+RUN cat "${KUBESPRAY_DIR}/requirements.txt"
 
 RUN apk update \
   && apk add --no-cache --virtual .build-deps \
@@ -57,12 +69,14 @@ RUN apk update \
   && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
 
 
+COPY terraform_openstack_templates /home/manageks/terraform_openstack_templates
 COPY config-cluster /home/manageks/config-cluster
-COPY create_inventory.py upgrade.py /usr/local/bin/
 RUN mkdir ${INVENTORY_DIR} \
- && chmod a+rx /usr/local/bin/create_inventory.py /usr/local/bin/upgrade.py \
  && find /home "${KUBESPRAY_DIR}" -type d -print0 | xargs -0 chmod a+rx \
  && find /home "${KUBESPRAY_DIR}" -type f -print0 | xargs -0 chmod a+r
+
+COPY create_inventory.py manage-cluster.py /usr/local/bin/
+RUN chmod a+rx /usr/local/bin/create_inventory.py /usr/local/bin/manage-cluster.py
 
 #####################################
 FROM manage-cluster-base AS manage-cluster-tf
