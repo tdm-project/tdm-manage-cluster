@@ -60,8 +60,8 @@
   gather_facts: false
   vars:
     helm:
-      version: v2.13.0
-      checksum: "sha256:15eca6ad225a8279de80c7ced42305e24bc5ac60bb7d96f2d2fa4af86e02c794"
+      version: v2.13.1
+      checksum: "sha256:c1967c1dfcd6c921694b80ededdb9bd1beb27cb076864e58957b1568bc98925a"
     local_provisioner:
       version: v2.3.0
       checksum: "sha256:d299b30e3c0728ab699acc10f42e4f16d9e5cb8c7395cfc006f9e4ee01c0c563"
