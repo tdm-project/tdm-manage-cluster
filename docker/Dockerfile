@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM hashicorp/terraform:0.11.14 AS manage-cluster-base
+FROM hashicorp/terraform:0.11.11 AS manage-cluster-base
 
 # KubeSpray repo and version
 ARG git_repo=kubernetes-sigs/kubespray.git
