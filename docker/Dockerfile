@@ -17,7 +17,7 @@ FROM hashicorp/terraform:0.11.11 AS manage-cluster-base
 
 # KubeSpray repo and version
 ARG git_repo=kubernetes-sigs/kubespray.git
-ARG base_kubespray_version="2.12.5"
+ARG base_kubespray_version="2.10.4"
 
 COPY ssh_config /etc/ssh/
 WORKDIR /tmp

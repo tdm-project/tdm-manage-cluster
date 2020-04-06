@@ -29,7 +29,7 @@ TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 #
 ### "Constants" ###
 # Make the default kubespray version coincide with the default in the Dockerfile
-DefaultKubesprayVersion='2.12.5'
+DefaultKubesprayVersion='2.10.4'
 
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray

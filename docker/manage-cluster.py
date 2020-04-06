@@ -10,7 +10,7 @@ import time
 
 from contextlib import contextmanager
 
-DefaultKubesprayVersion = os.getenv('DEFAULT_KUBESPRAY_VERSION', '2.12.5')
+DefaultKubesprayVersion = os.getenv('DEFAULT_KUBESPRAY_VERSION', '2.10.4')
 
 KsVersionStampFilename = 'kubespray_deployer_version'
 PatchFilenameTemplate = '/home/manageks/kubespray_patches/v{}.patch'
