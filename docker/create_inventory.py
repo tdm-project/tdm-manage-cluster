@@ -205,6 +205,10 @@ class Inventory(object):
                 instance = terraform_state.instances[instance_id]
                 config.set(group, Inventory.__format_node_name(instance))
 
+        all_vars = "all:vars"
+        config.add_section(all_vars)
+        config.set(all_vars, 'ansible_python_interpreter', '/usr/bin/python3')
+
         # write the output file
         if output_stream:
             config.write(output_stream)
