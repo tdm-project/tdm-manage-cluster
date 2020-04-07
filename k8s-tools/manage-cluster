@@ -362,12 +362,14 @@ function deploy_k8s() {
 
   local keyfile_path="$(get_key_file_path)"
   # TODO:  this command is getting sufficiently complex that it might warrant its own script
-  # The command of the compound sets the owner of the deployer_stamp_file
+  # The chown commands of the compound set the owner of the deployer_stamp_file
+  # and the "credentials" directory (created by newer versions of kubespray)
   # to the owner of the cluster 'tf' directory (rather than leave it as owned by root).
   local cmd=('eval $(ssh-agent -s); ' 
              "ssh-add -k '${keyfile_path}' &&" 
              "manage-cluster.py \${KUBESPRAY_DIR} --cluster-dir . --target-version ${version} deploy-k8s &&"
-             "chown \$(stat -c %u:%g . ) ${KsVersionStampFilename}")
+             "chown \$(stat -c %u:%g . ) ${KsVersionStampFilename} &&"
+             "if [[ -d credentials ]]; then chown -R \$(stat -c %u:%g . ) credentials; fi")
 
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
