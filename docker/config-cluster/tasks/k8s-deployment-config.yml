@@ -154,7 +154,7 @@
 
 - name: Create k8s resources
   shell: kubectl apply -f "{{ item.path }}"
-  loop: "{{ k8s_resources.files | list }}"
+  loop: "{{ k8s_resources.files | sort(attribute='path') }}"
 
 - name: Label worker nodes
   shell: for node in $(kubectl get nodes -l node-role.kubernetes.io/node='' -o name ); do kubectl label --overwrite ${node} tdm.role.worker='' ; done
@@ -193,51 +193,6 @@
   shell: test "true" = `kubectl get pods -l name=tiller --all-namespaces --output=json | jq '.["items"][0]["status"]["containerStatuses"][0]["ready"]'`
   changed_when: false
 
-### Install  local storage provisioner
-
-- name: Check if local provisioner installed
-  shell: kubectl get pods -l app=local-volume-provisioner --all-namespaces --output=name | grep -c local-volume-provisioner
-  register: provisioner_ok
-  ignore_errors: true
-  changed_when: False
-
-- name: Create temporary directory for sig-storage-local-static-provisioner download
-  tempfile:
-    state: directory
-  register: output
-  when: provisioner_ok is failed
-
-- name: "Name download sig-storage-local-static-provisioner {{ local_provisioner.version }}"
-  get_url:
-    checksum: "{{ local_provisioner.checksum }}"
-    dest: "{{ output.path }}/provisioner_archive.tar.gz"
-    url: "https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner/archive/{{ local_provisioner.version }}.tar.gz"
-  when: provisioner_ok is failed
-
-- name: set var
-  set_fact:
-    provisioner_path: "{{ output.path }}/sig-storage-local-static-provisioner-{{ local_provisioner.version[1:] }}"
-  when: provisioner_ok is failed
-
-- name: Extract provisioner archive
-  unarchive:
-    src: "{{ output.path }}/provisioner_archive.tar.gz"
-    copy: no
-    creates: "{{ provisioner_path }}"
-    dest: "{{ output.path }}"
-  when: provisioner_ok is failed
-
-- name: Install local volume provisioner chart into kube-system namespace
-  command: helm install --namespace kube-system --values /root/manage-cluster/helm-resources/sig-storage-local-static-provisioner_values.yml "{{ provisioner_path }}/helm/provisioner"
-  when: provisioner_ok is failed
-
-- name: Remove provisioner download directory
-  file:
-    path: "{{ output.path }}"
-    state: absent
-  when: provisioner_ok is failed
-
-
 ### Install NFS provisioner
 
 - name: Get installed nfs provisioner chart
@@ -251,7 +206,6 @@
   debug:
     msg: "Detected nfs-server-provisioner version {{ nfs_provisioner_installed.stdout }}"
   when: nfs_provisioner_installed is succeeded
-
 
 - name: set version fact
   set_fact:

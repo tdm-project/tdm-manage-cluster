@@ -1,0 +1,20 @@
+
+---
+- name: print message
+  debug:
+    msg: "{{ [ '', 'Installing Rook Ceph operator', '' ] }}"
+
+- name: Copy rook resources to master node
+  copy:
+    src: "{{ playbook_dir }}/rook"
+    dest: /root/manage-cluster/
+
+- name: collect rook resources on master node
+  find:
+    paths: /root/manage-cluster/rook
+    patterns: "[0-9]*"
+  register: rook_resources
+
+- name: Create rook resources
+  shell: kubectl apply -f "{{ item.path }}"
+  loop: "{{ rook_resources.files | sort(attribute='path') }}"
