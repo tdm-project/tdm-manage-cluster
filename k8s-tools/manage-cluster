@@ -681,7 +681,7 @@ function list_supported_ks_versions() {
                     -e PYTHONPATH=/usr/local/bin/  
                     --entrypoint /usr/bin/python3
                     "${KsImage}"
-                    -c 'mc = __import__("manage-cluster"); print( "\n".join( ("{}\t{}".format(*row) for row in mc.VersionTable) ) )')
+                    -c 'mc = __import__("manage-cluster"); import sys; print("KubeSpray\tKubernetes", file=sys.stderr); print( "\n".join( ("{}\t{}".format(*row) for row in mc.VersionTable) ) )')
   debug_log "${docker_cmdline[@]}"
   "${docker_cmdline[@]}"
 }
