@@ -61,14 +61,18 @@ For additional functionality see the output from `manage-cluster -h`:
   manage-cluster -v        prints the 'manage-cluster' version
 
   COMMAND:
-    template       creates a template cluster configuration directory
-    deploy         creates virtual machines
-    deploy-k8s     deploys kubernetes
-    config-cluster customize cluster with CRS4-specific configuration
-    destroy        destroys virtual machines
-    config-client  configures kubectl
-    get-master-ips prints out master IPs for the cluster, one per line (cluster must be deployed)
-    shell          opens a shell in the manage-cluster container
+    template    [ks version]   creates a template cluster configuration directory
+    deploy                     creates virtual machines
+    deploy-k8s  [ks version]   deploys kubernetes
+    config-cluster             run ansible playbook to configure the kubernetes cluster. The default
+                               playbook contains CRS4-specific customizations.
+    upgrade-k8s [ks version]   upgrade the version of Kubernetes installed on a cluster.
+    destroy                    destroys virtual machines
+    config-client              configures kubectl
+    get-master-ips             prints out master IPs for the cluster, one per line (cluster must be deployed)
+    shell       [ks version]   opens a shell for the current cluster in the manage-cluster container
+    list-ks-versions           lists KubeSpray versions supported by this program.
+
 
   CLUSTER_DIR:
     Path to the directory containing the cluster's configuration
