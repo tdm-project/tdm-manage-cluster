@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Copyright 2018-2019 CRS4 (http://www.crs4.it/)
 #
@@ -18,9 +18,9 @@ import os
 import json
 import argparse
 import random
-import ConfigParser
+import configparser
 
-VERSION = '0.1.0alpha'
+VERSION = '0.2.0'
 
 
 class KubeSprayGroupName(object):
@@ -114,7 +114,7 @@ class TerraformState(object):
     def choose_random_fip_instance(self):
         if len(self._fip_associations) == 0:
             raise Exception("No public IP available!!!")
-        return random.choice(self._fip_associations.values())
+        return random.choice(list(self._fip_associations.values()))
 
     @staticmethod
     def parse_json_data(json_data):        
@@ -170,7 +170,7 @@ class Inventory(object):
         :param output_stream:
         :return:
         """
-        config = ConfigParser.RawConfigParser(allow_no_value=True)
+        config = configparser.RawConfigParser(allow_no_value=True)
 
         # get map group_name -> instance_id list
         groups = terraform_state.kubespray_groups
@@ -204,6 +204,10 @@ class Inventory(object):
             for instance_id in instance_id_list:
                 instance = terraform_state.instances[instance_id]
                 config.set(group, Inventory.__format_node_name(instance))
+
+        all_vars = "all:vars"
+        config.add_section(all_vars)
+        config.set(all_vars, 'ansible_python_interpreter', '/usr/bin/python3')
 
         # write the output file
         if output_stream:

@@ -1,0 +1,15 @@
+diff --git a/requirements.txt b/requirements.txt
+index e36ab79d..0e4d0cc8 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,5 +1,5 @@
+-ansible>=2.5.0,!=2.7.0
+-jinja2>=2.9.6
+-netaddr
+-pbr>=1.6
+-hvac
++ansible==2.7.8
++jinja2==2.10.1
++netaddr==0.7.19
++pbr==5.1
++hvac==0.8.2

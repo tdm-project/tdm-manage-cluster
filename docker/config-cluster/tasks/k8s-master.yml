@@ -11,4 +11,4 @@
 
 - name: Install openstacksdk
   pip:
-    name: openstacksdk
+    name: "openstacksdk>=0.12"

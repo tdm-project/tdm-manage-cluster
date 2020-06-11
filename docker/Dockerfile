@@ -1,5 +1,5 @@
 
-# Copyright 2018-2019 CRS4 (http://www.crs4.it/)
+# Copyright 2018-2020 CRS4 (http://www.crs4.it/)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,50 +16,74 @@
 FROM hashicorp/terraform:0.11.11 AS manage-cluster-base
 
 # KubeSpray repo and version
-#ARG git_repo=kubernetes-sigs/kubespray.git
-#ARG kubespray_version="v2.8.2"
-
-ARG git_repo=tdm-project/kubespray.git
-ARG kubespray_version="v2.8.4_external_network_only_with_datanodes"
-
-LABEL kubespray_version="${kubespray_version}"
+ARG git_repo=kubernetes-sigs/kubespray.git
+ARG base_kubespray_version="2.10.4"
 
 COPY ssh_config /etc/ssh/
-COPY requirements.txt /root/manage-cluster-py-requirements.txt
-
-RUN apk update && \
-  apk add --no-cache --virtual .build-deps python2-dev gcc libc-dev libffi-dev openssl-dev make && \
-  apk add --no-cache jq git python2 py2-pip bash && \
-  pip install --no-cache-dir --upgrade pip && \
-  pip install -r /root/manage-cluster-py-requirements.txt  && \
-  apk del --purge .build-deps && \
-  rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
-
 WORKDIR /tmp
+ENV DEFAULT_KUBESPRAY_VERSION=${base_kubespray_version}
 ENV KUBESPRAY_DIR=/kubespray
+ENV INVENTORY_DIR=/inventory-dir
 
-RUN git clone --depth 1 --single-branch --branch "${kubespray_version}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
+RUN apk update \
+  && apk add --no-cache \
+        bash \
+        git \
+        jq \
+        py3-pip \
+        python3 \
+  && pip3 install --no-cache-dir --upgrade pip \
+  && pip3 install --no-cache-dir 'GitPython==3.1' \
+  && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
+
+RUN git clone --depth 1 --single-branch --branch "v${DEFAULT_KUBESPRAY_VERSION}" https://github.com/${git_repo} ${KUBESPRAY_DIR} \
  && cd ${KUBESPRAY_DIR} \
- && sed -i \
-        -e 's|\<contrib/terraform/openstack/ansible_bastion_template.txt\>|../../contrib/terraform/openstack/ansible_bastion_template.txt|g' \
-        -e "s|\<contrib/terraform/group_vars/no-floating.yml\>|${KUBESPRAY_DIR}/inventory/cluster/group_vars/no-floating.yml|g" \
-        contrib/terraform/openstack/modules/compute/main.tf \
- && rm -rf .git \
- && find . -type d -print0 | xargs -0 chmod a+rwx \
- && find . -type f -print0 | xargs -0 chmod a+rw
+ && git fetch --tags \
+ && git checkout "v${DEFAULT_KUBESPRAY_VERSION}"
 
+COPY kubespray_patches /home/manageks/kubespray_patches
+# Apply a patch to kubespray if we have one.  The operation is rather
+# contrived because we want any error in `git apply` to rise to the RUN
+RUN \
+  set -x && \
+  cd "${KUBESPRAY_DIR}" \
+  && if [[ -f /home/manageks/kubespray_patches/v${DEFAULT_KUBESPRAY_VERSION}.patch ]]; then \
+        git apply /home/manageks/kubespray_patches/v${DEFAULT_KUBESPRAY_VERSION}.patch ; \
+     fi \
+  && find "${KUBESPRAY_DIR}" -print0 | xargs -0 chmod a+w
+# We make the repository world writable so that all users can change the checked out
+# kubespray version
+
+RUN cat "${KUBESPRAY_DIR}/requirements.txt"
+
+RUN apk update \
+  && apk add --no-cache --virtual .build-deps \
+         gcc \
+         libc-dev \
+         libffi-dev \
+         make \
+         openssl-dev \
+         python3-dev \
+  && pip3 install --no-cache-dir -r "${KUBESPRAY_DIR}/requirements.txt" \
+  && apk del --purge .build-deps \
+  && rm -rf /var/lib/{cache,log}/ /tmp/* /var/tmp/* /root/.[^.]* /root/*
+
+
+COPY terraform_openstack_templates /home/manageks/terraform_openstack_templates
 COPY config-cluster /home/manageks/config-cluster
-COPY create_inventory.py /usr/local/bin/
-RUN chmod a+rx /usr/local/bin/create_inventory.py \
-    && find /home -type d -print0 | xargs -0 chmod a+rx \
-    && find /home -type f -print0 | xargs -0 chmod a+r
+RUN mkdir ${INVENTORY_DIR} \
+ && find /home "${KUBESPRAY_DIR}" -type d -print0 | xargs -0 chmod a+rx \
+ && find /home "${KUBESPRAY_DIR}" -type f -print0 | xargs -0 chmod a+r
+
+COPY create_inventory.py manage-cluster.py /usr/local/bin/
+RUN chmod a+rx /usr/local/bin/create_inventory.py /usr/local/bin/manage-cluster.py
 
 #####################################
 FROM manage-cluster-base AS manage-cluster-tf
 
 # USER -> this image is run as the local system user by the manage-cluster script
 
-WORKDIR ${KUBESPRAY_DIR}/inventory/cluster
+WORKDIR ${INVENTORY_DIR}/cluster
 ENTRYPOINT []
 
 
@@ -67,9 +91,11 @@ ENTRYPOINT []
 FROM manage-cluster-base AS manage-cluster-ks
 
 ENV ANSIBLE_LOCAL_TEMP=/tmp
+RUN mkdir -p /etc/ansible && ln -s ${KUBESPRAY_DIR}/roles /etc/ansible/roles
 
 # must run as root...haven't been able to make it work otherwise
 USER root
 WORKDIR /root/
 
 ENTRYPOINT []
+
