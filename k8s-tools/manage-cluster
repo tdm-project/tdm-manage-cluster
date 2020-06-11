@@ -22,7 +22,7 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION="${VERSION:-1.6}"
+VERSION="${VERSION:-1.7}"
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"

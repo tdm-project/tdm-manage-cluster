@@ -6,3 +6,5 @@
     name:
       - nfs-client
       - vim
+      - gdisk
+      - lvm2

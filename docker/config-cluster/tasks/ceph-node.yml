@@ -1,0 +1,32 @@
+---
+- name: Check whether we have an ephemeral block device
+  shell: blkid /dev/vdb | grep 'LABEL="EPH'
+  register: ephemeral_present
+  ignore_errors: True
+  changed_when: False
+
+- name: Check whether we have a virgin ephemeral volume
+  shell: blkid /dev/vdb | grep 'LABEL="EPHEMERAL' | grep 'TYPE="vfat"'
+  register: ephemeral_virgin
+  ignore_errors: True
+  changed_when: False
+
+- name: Tell user we're not going to format
+  debug:
+    msg: "Ephemeral volume is not 'virgin'. We're not going to format it."
+  when: ephemeral_present is succeeded and ephemeral_virgin is failed
+
+- name: unmount ephemeral volume
+  mount:
+    state: absent
+    path: /mnt
+    src: /dev/vdb
+  when: ephemeral_virgin is succeeded
+
+- name: sgdisk zapping ephemeral volume
+  command: sgdisk --zap-all /dev/vdb
+  when: ephemeral_virgin is succeeded
+
+- name: dd zapping ephemeral volume
+  command: dd if=/dev/zero of=/dev/vdb bs=1M count=100 oflag=direct,dsync
+  when: ephemeral_virgin is succeeded
