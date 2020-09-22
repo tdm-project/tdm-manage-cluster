@@ -22,14 +22,14 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION="${VERSION:-1.7}"
+VERSION="${VERSION:-1.8}"
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 #
 ### "Constants" ###
 # Make the default kubespray version coincide with the default in the Dockerfile
-DefaultKubesprayVersion='2.10.4'
+DefaultKubesprayVersion='2.14.0'
 
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray
