@@ -373,9 +373,9 @@ function deploy_k8s() {
 
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
-  # generate KubeConfig
-  log "Deployment finished.  Configuring client"
-  config_client
+  # # generate KubeConfig
+  # log "Deployment finished.  Configuring client"
+  # config_client
 
   log "\nTo finish configuring your cluster run\n\tmanage-cluster config-cluster ${CLUSTER_DIR}"
 }
