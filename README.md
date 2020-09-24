@@ -3,6 +3,10 @@
 
 A simple utility to help deploy Kubernetes clusters with Terraform and KubeSpray.
 
+## Helm version
+
+Starting from version 1.8, `manage-cluster` supports only **Helm version 3**. In order to work with Helm version 2 please refer to branch *helm-2* of this repository.
+
 ## Requirements
 
 * Docker
@@ -87,7 +91,7 @@ https://github.com/kubernetes-incubator/kubespray/tree/master/contrib/terraform/
 
 ## Copyright and License
 
-Copyright 2018-2019 CRS4 (http://www.crs4.it/)
+Copyright 2018-2020 CRS4 (http://www.crs4.it/)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

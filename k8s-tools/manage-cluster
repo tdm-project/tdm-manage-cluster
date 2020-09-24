@@ -449,6 +449,8 @@ contexts:
 preferences: {}
 users:
 KCF
+  chmod 600 "${CLUSTER_DIR}/artifacts/kubeconfig"
+
   kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
     set preferences.colors true >/dev/null
 
