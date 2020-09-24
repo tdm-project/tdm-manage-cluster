@@ -373,10 +373,6 @@ function deploy_k8s() {
 
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
-  # # generate KubeConfig
-  # log "Deployment finished.  Configuring client"
-  # config_client
-
   log "\nTo finish configuring your cluster run\n\tmanage-cluster config-cluster ${CLUSTER_DIR}"
 }
 
@@ -572,6 +568,8 @@ function _run_playbook() {
 
 function config_cluster() {
   _run_playbook config-cluster-playbook.yml
+
+  log "\nNow is possible to configure the client: run\n\tmanage-cluster config-client ${CLUSTER_DIR}"
 }
 
 function unconfig_cluster() {
