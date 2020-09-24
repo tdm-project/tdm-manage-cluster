@@ -75,67 +75,67 @@
     port_range_min: 1
     port_range_max: 65535
 
-### install helm executable
-- name: "Check helm executable"
-  shell: helm version --client --short | grep "{{ helm.version }}"
-  register: helm_client_ok
-  ignore_errors: true
-  changed_when: False
-
-- name: print message
-  debug:
-    msg: "{{ [ '', 'found helm executable version ' + helm.version + ' on master', '' ] }}"
-  when: helm_client_ok is succeeded
-
-
-- name: print message
-  debug:
-    msg: "{{ [ '', 'installing helm executable on master node', '' ] }}"
-  when: helm_client_ok is failed
-
-- name: Create temporary directory for helm download
-  tempfile:
-    state: directory
-  register: output
-  when: helm_client_ok is failed
-
-- name: "Download helm {{ helm.version }}"
-  get_url:
-    checksum: "{{ helm.checksum }}"
-    dest: "{{ output.path }}/helm_archive.tar.gz"
-    url: "https://storage.googleapis.com/kubernetes-helm/helm-{{ helm.version }}-linux-amd64.tar.gz"
-  when: helm_client_ok is failed
-
-- name: Extract helm
-  unarchive:
-    src: "{{ output.path }}/helm_archive.tar.gz"
-    copy: no
-    creates: "{{ output.path }}/linux-amd64/helm"
-    dest: "{{ output.path }}"
-  when: helm_client_ok is failed
-
-- name: stat helm executable
-  stat:
-    path: "{{ output.path }}/linux-amd64/helm"
-  register: helm_stat
-  when: helm_client_ok is failed
-
-- name: Install helm executable
-  command: mv "{{ helm_stat.stat.path }}" /usr/local/bin
-  when: helm_client_ok is failed and helm_stat.stat.exists
-
-- name: Set helm owner and permissions
-  file:
-    path: /usr/local/bin/helm
-    owner: root
-    group: root
-    mode: 0755
-
-- name: Remove helm installation directory
-  file:
-    path: "{{ output.path }}"
-    state: absent
-  when: helm_client_ok is failed
+# ### install helm executable
+# - name: "Check helm executable"
+#   shell: helm version --client --short | grep "{{ helm.version }}"
+#   register: helm_client_ok
+#   ignore_errors: true
+#   changed_when: False
+#
+# - name: print message
+#   debug:
+#     msg: "{{ [ '', 'found helm executable version ' + helm.version + ' on master', '' ] }}"
+#   when: helm_client_ok is succeeded
+#
+#
+# - name: print message
+#   debug:
+#     msg: "{{ [ '', 'installing helm executable on master node', '' ] }}"
+#   when: helm_client_ok is failed
+#
+# - name: Create temporary directory for helm download
+#   tempfile:
+#     state: directory
+#   register: output
+#   when: helm_client_ok is failed
+#
+# - name: "Download helm {{ helm.version }}"
+#   get_url:
+#     checksum: "{{ helm.checksum }}"
+#     dest: "{{ output.path }}/helm_archive.tar.gz"
+#     url: "https://storage.googleapis.com/kubernetes-helm/helm-{{ helm.version }}-linux-amd64.tar.gz"
+#   when: helm_client_ok is failed
+#
+# - name: Extract helm
+#   unarchive:
+#     src: "{{ output.path }}/helm_archive.tar.gz"
+#     copy: no
+#     creates: "{{ output.path }}/linux-amd64/helm"
+#     dest: "{{ output.path }}"
+#   when: helm_client_ok is failed
+#
+# - name: stat helm executable
+#   stat:
+#     path: "{{ output.path }}/linux-amd64/helm"
+#   register: helm_stat
+#   when: helm_client_ok is failed
+#
+# - name: Install helm executable
+#   command: mv "{{ helm_stat.stat.path }}" /usr/local/bin
+#   when: helm_client_ok is failed and helm_stat.stat.exists
+#
+# - name: Set helm owner and permissions
+#   file:
+#     path: /usr/local/bin/helm
+#     owner: root
+#     group: root
+#     mode: 0755
+#
+# - name: Remove helm installation directory
+#   file:
+#     path: "{{ output.path }}"
+#     state: absent
+#   when: helm_client_ok is failed
 
 ###### Install k8s resources
 - name: print message
@@ -165,71 +165,71 @@
 - name: Taint data nodes
   shell: for node in $(kubectl get nodes -o name | grep data-node ); do kubectl taint --overwrite nodes ${node} tdm.role.datanode=:NoSchedule ; done
 
-####### Install tiller on cluster
-- name: print message
-  debug:
-    msg: "{{ [ '', 'Installng/upgrading tiller', '' ] }}"
+# ####### Install tiller on cluster
+# - name: print message
+#   debug:
+#     msg: "{{ [ '', 'Installng/upgrading tiller', '' ] }}"
+#
+# - name: Install or upgrade tiller
+#   shell: helm init --service-account tiller --upgrade
+#   register: tiller_install_result
+#
+# - name: Print tiller output
+#   debug:
+#     msg: "{{ tiller_install_result.stdout.split('\n') }}" # The splitting makes it reproduce the newlines
+#
+# - name: Copy helm resources to master node
+#   copy:
+#     src: "{{ playbook_dir }}/helm-resources"
+#     dest: /root/manage-cluster/
+#
+# - name: pause for tiller
+#   pause:
+#     echo: no
+#     seconds: 15
+#   changed_when: false
+#
+# - name: Check that Tiller is ready before continuing
+#   shell: test "true" = `kubectl get pods -l name=tiller --all-namespaces --output=json | jq '.["items"][0]["status"]["containerStatuses"][0]["ready"]'`
+#   changed_when: false
 
-- name: Install or upgrade tiller
-  shell: helm init --service-account tiller --upgrade
-  register: tiller_install_result
-
-- name: Print tiller output
-  debug:
-    msg: "{{ tiller_install_result.stdout.split('\n') }}" # The splitting makes it reproduce the newlines
-
-- name: Copy helm resources to master node
-  copy:
-    src: "{{ playbook_dir }}/helm-resources"
-    dest: /root/manage-cluster/
-
-- name: pause for tiller
-  pause:
-    echo: no
-    seconds: 15
-  changed_when: false
-
-- name: Check that Tiller is ready before continuing
-  shell: test "true" = `kubectl get pods -l name=tiller --all-namespaces --output=json | jq '.["items"][0]["status"]["containerStatuses"][0]["ready"]'`
-  changed_when: false
-
-### Install NFS provisioner
-
-- name: Get installed nfs provisioner chart
-  # The awk is to get a non-zero exit code on empty output
-  shell: helm list | cut -f 5 | awk 'BEGIN{ rv = 1 }; /\<nfs-server-provisioner/ { n=split($0, name_ver, "-"); print name_ver[n]; rv = 0; }; END{ exit rv }'
-  register: nfs_provisioner_installed
-  ignore_errors: true
-  changed_when: False
-
-- name: Show detected chart version
-  debug:
-    msg: "Detected nfs-server-provisioner version {{ nfs_provisioner_installed.stdout }}"
-  when: nfs_provisioner_installed is succeeded
-
-- name: set version fact
-  set_fact:
-    version_ok: false
-  changed_when: false
-
-- name: set version fact if ok
-  set_fact:
-    version_ok: "{{ nfs_provisioner_installed.stdout is version(nfs_provisioner.version, '>=') }}"
-  when: nfs_provisioner_installed is succeeded
-
-- name: Install NFS provisioner for ReadWriteMany volumes
-  command: helm install --debug --namespace kube-system --values /root/manage-cluster/helm-resources/nfs-server-provisioner_values.yml stable/nfs-server-provisioner --version "{{ nfs_provisioner.version }}"
-  when: nfs_provisioner_installed is failed
-
-- name: Fail if unsupported NFS provisioner upgrade
-  fail:
-    msg: "Found nfs provisioner version {{ nfs_provisioner_installed.stdout }} but this playbook doesn' support upgrading the helm chart."
-  when:
-    - nfs_provisioner_installed is succeeded
-    - not version_ok
-
-- debug:
-    msg: "{{ [ '', 'NFS server provisioner chart version ' + nfs_provisioner_installed.stdout + ' was already installed', '' ] }}"
-  when:
-    - nfs_provisioner_installed is succeeded
-    - version_ok
+# ### Install NFS provisioner
+#
+# - name: Get installed nfs provisioner chart
+#   # The awk is to get a non-zero exit code on empty output
+#   shell: helm list | cut -f 5 | awk 'BEGIN{ rv = 1 }; /\<nfs-server-provisioner/ { n=split($0, name_ver, "-"); print name_ver[n]; rv = 0; }; END{ exit rv }'
+#   register: nfs_provisioner_installed
+#   ignore_errors: true
+#   changed_when: False
+#
+# - name: Show detected chart version
+#   debug:
+#     msg: "Detected nfs-server-provisioner version {{ nfs_provisioner_installed.stdout }}"
+#   when: nfs_provisioner_installed is succeeded
+#
+# - name: set version fact
+#   set_fact:
+#     version_ok: false
+#   changed_when: false
+#
+# - name: set version fact if ok
+#   set_fact:
+#     version_ok: "{{ nfs_provisioner_installed.stdout is version(nfs_provisioner.version, '>=') }}"
+#   when: nfs_provisioner_installed is succeeded
+#
+# - name: Install NFS provisioner for ReadWriteMany volumes
+#   command: helm install --debug --namespace kube-system --values /root/manage-cluster/helm-resources/nfs-server-provisioner_values.yml stable/nfs-server-provisioner --version "{{ nfs_provisioner.version }}"
+#   when: nfs_provisioner_installed is failed
+#
+# - name: Fail if unsupported NFS provisioner upgrade
+#   fail:
+#     msg: "Found nfs provisioner version {{ nfs_provisioner_installed.stdout }} but this playbook doesn' support upgrading the helm chart."
+#   when:
+#     - nfs_provisioner_installed is succeeded
+#     - not version_ok
+#
+# - debug:
+#     msg: "{{ [ '', 'NFS server provisioner chart version ' + nfs_provisioner_installed.stdout + ' was already installed', '' ] }}"
+#   when:
+#     - nfs_provisioner_installed is succeeded
+#     - version_ok

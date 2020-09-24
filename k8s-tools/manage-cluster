@@ -22,14 +22,14 @@ set -o pipefail
 set -o errtrace
 
 # sw version
-VERSION="${VERSION:-1.7}"
+VERSION="${VERSION:-1.8}"
 # set version of docker images
 KsImage="${KsImage:-tdmproject/manage-cluster-ks:${VERSION}}"
 TfImage="${TfImage:-tdmproject/manage-cluster-tf:${VERSION}}"
 #
 ### "Constants" ###
 # Make the default kubespray version coincide with the default in the Dockerfile
-DefaultKubesprayVersion='2.10.4'
+DefaultKubesprayVersion='2.14.0'
 
 InventoryFile=hosts.ini
 KubesprayContainerDir=/kubespray
@@ -373,10 +373,6 @@ function deploy_k8s() {
 
   docker_run_ks /bin/sh -o xtrace -c "${cmd[*]}" # expand cmd and compact into a single string
 
-  # generate KubeConfig
-  log "Deployment finished.  Configuring client"
-  config_client
-
   log "\nTo finish configuring your cluster run\n\tmanage-cluster config-cluster ${CLUSTER_DIR}"
 }
 
@@ -449,6 +445,8 @@ contexts:
 preferences: {}
 users:
 KCF
+  chmod 600 "${CLUSTER_DIR}/artifacts/kubeconfig"
+
   kubectl config --kubeconfig "${CLUSTER_DIR}/artifacts/kubeconfig" \
     set preferences.colors true >/dev/null
 
@@ -570,6 +568,8 @@ function _run_playbook() {
 
 function config_cluster() {
   _run_playbook config-cluster-playbook.yml
+
+  log "\nNow is possible to configure the client: run\n\tmanage-cluster config-client ${CLUSTER_DIR}"
 }
 
 function unconfig_cluster() {
