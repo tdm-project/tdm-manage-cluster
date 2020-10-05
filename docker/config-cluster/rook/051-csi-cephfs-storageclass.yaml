@@ -1,19 +1,18 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-cephfs
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+  name: rook-cephfs
 provisioner: rook-ceph.cephfs.csi.ceph.com
 parameters:
   # clusterID is the namespace where operator is deployed.
   clusterID: rook-ceph
 
   # CephFS filesystem name into which the volume shall be created
-  fsName: ceph-fs
+  fsName: tdmfs
 
   # Ceph pool into which the volume shall be created
   # Required for provisionVolume: "true"
-  pool: ceph-fs-data0
+  pool: tdmfs-data0
 
   # Root path of an existing CephFS volume
   # Required for provisionVolume: "false"
